@@ -257,7 +257,8 @@ export class GayLussacScene {
         // Create lid as separate group for vibration animation
         // Lid sits directly on top of the cooker body rim
         this.lidGroup = new THREE.Group();
-        this.lidGroup.position.y = 1.5; // Same height as body rim
+        this.baseLidY = 1.46; // Slightly inset to sit flush with rim
+        this.lidGroup.position.y = this.baseLidY;
         cookerGroup.add(this.lidGroup);
 
         // Lid transparent material
@@ -531,7 +532,7 @@ export class GayLussacScene {
         this.cylinderParams = {
             radius: 1.1,
             yMin: 0.1,   // Cooker base on stove surface
-            yMax: 1.75   // Just below lid
+            yMax: this.baseLidY - 0.05   // Just below lid
         };
 
         this.particleSystem.setBounds(1.1, 0.6, 1.1);
@@ -646,10 +647,10 @@ export class GayLussacScene {
 
             this.lidGroup.position.x = vibX;
             this.lidGroup.position.z = vibZ;
-            this.lidGroup.position.y = 1.5 + vibY;
+            this.lidGroup.position.y = this.baseLidY + vibY;
         } else {
             // Reset to normal position
-            this.lidGroup.position.set(0, 1.5, 0);
+            this.lidGroup.position.set(0, this.baseLidY, 0);
         }
     }
 

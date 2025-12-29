@@ -486,11 +486,11 @@ export class AvogadroScene {
         // Use spherical bounds for the balloon - particles must stay inside
         const volumeRatio = this.state.volume / 22.4;
         const radiusRatio = Math.cbrt(volumeRatio);
-        const radius = 0.8 * radiusRatio;
+        const radius = 0.8 * radiusRatio * 0.9; // Slightly smaller to keep particles inside the balloon skin
 
         this.particleSystem.sphereParams = {
             radius: radius,
-            centerY: 0
+            centerY: -0.05 // Nudge center downward to match balloon shape
         };
 
         this.updateParticleBounds();
@@ -630,13 +630,14 @@ export class AvogadroScene {
         // Scale bounds with balloon size
         const volumeRatio = this.state.volume / 22.4;
         const radiusRatio = Math.cbrt(volumeRatio);
-        const radius = 0.8 * radiusRatio;
+        const radius = 0.8 * radiusRatio * 0.9; // Slightly smaller to keep molecules contained
 
         this.particleSystem.setBounds(radius, radius * 1.1, radius);
 
         // Update sphere params for proper containment
         if (this.particleSystem.sphereParams) {
             this.particleSystem.sphereParams.radius = radius;
+            this.particleSystem.sphereParams.centerY = -0.05;
         }
     }
 
@@ -693,6 +694,8 @@ export class AvogadroScene {
                 this.mainBalloon.position.y,
                 this.mainBalloon.position.z
             );
+            // Clamp particles back inside if drifted due to fast motion
+            this.particleSystem.repositionParticles();
 
             // Particle system uses centerOffset for positioning - no manual offset needed
             this.particleSystem.update(deltaTime);
