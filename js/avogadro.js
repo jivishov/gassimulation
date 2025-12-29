@@ -381,15 +381,11 @@ export class AvogadroScene {
             showCollisions: true
         });
 
+        // Set center offset to main balloon position
+        this.particleSystem.setCenterOffset(2.5, 3, 0);
         this.updateParticleBounds();
         this.particleSystem.createParticles();
         this.particleSystem.setTemperature(this.state.temperature);
-
-        // Offset particles to balloon position
-        this.particleSystem.particles.forEach(p => {
-            p.mesh.position.x += 2.5;
-            p.mesh.position.y += 3;
-        });
     }
 
     createGasFlowParticles() {
@@ -450,7 +446,13 @@ export class AvogadroScene {
             }
 
             // Balloon floats higher with more helium
-            this.mainBalloon.position.y = 3 + (this.state.moles - 1) * 0.5;
+            const newBalloonY = 3 + (this.state.moles - 1) * 0.5;
+            this.mainBalloon.position.y = newBalloonY;
+
+            // Update particle center offset to match balloon position
+            if (this.particleSystem) {
+                this.particleSystem.setCenterOffset(2.5, newBalloonY, 0);
+            }
         }
     }
 
@@ -471,21 +473,14 @@ export class AvogadroScene {
         this.updateBalloonSize();
         this.updateParticleBounds();
 
-        // Adjust particle count proportionally
+        // Adjust particle count proportionally (more moles = more molecules)
         const targetCount = Math.round(50 * moles);
         const currentCount = this.particleSystem.getCount();
 
         if (Math.abs(targetCount - currentCount) > 5) {
             const newCount = Math.min(150, Math.max(10, targetCount));
+            // New particles are automatically created at centerOffset position
             this.particleSystem.setParticleCount(newCount);
-
-            // Offset new particles
-            this.particleSystem.particles.forEach(p => {
-                if (p.mesh.position.x < 1) {
-                    p.mesh.position.x += 2.5;
-                    p.mesh.position.y += 3;
-                }
-            });
         }
 
         return this.state;
@@ -511,32 +506,15 @@ export class AvogadroScene {
         }
 
         if (this.particleSystem) {
-            // Offset for balloon position
-            this.particleSystem.particles.forEach(p => {
-                p.mesh.position.x -= 2.5;
-                p.mesh.position.y -= 3;
-            });
-
+            // Particle system uses centerOffset for positioning - no manual offset needed
             this.particleSystem.update(deltaTime);
-
-            this.particleSystem.particles.forEach(p => {
-                p.mesh.position.x += 2.5;
-                p.mesh.position.y += 3 + (this.state.moles - 1) * 0.5;
-            });
         }
     }
 
     setParticleCount(count) {
         if (this.particleSystem) {
-            const currentCount = this.particleSystem.getCount();
+            // New particles are automatically created at centerOffset position
             this.particleSystem.setParticleCount(count);
-
-            if (count > currentCount) {
-                this.particleSystem.particles.slice(currentCount).forEach(p => {
-                    p.mesh.position.x += 2.5;
-                    p.mesh.position.y += 3;
-                });
-            }
         }
     }
 

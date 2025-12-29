@@ -430,15 +430,19 @@ export class IdealScene {
             showCollisions: true
         });
 
-        // Bounds for inside tank
+        // Tank center is at y=1.25 (center of 2.5 tall cylinder)
+        this.particleSystem.setCenterOffset(0, 1.25, 0);
+
+        // Cylindrical bounds for scuba tank (radius ~0.4, height from bottom to top dome)
+        this.cylinderParams = {
+            radius: 0.38,
+            yMin: 0.1,   // Tank bottom with boot
+            yMax: 2.4    // Tank top before valve
+        };
+
         this.particleSystem.setBounds(0.35, 1.1, 0.35);
         this.particleSystem.createParticles();
         this.particleSystem.setTemperature(this.state.temperature);
-
-        // Offset particles to tank position
-        this.particleSystem.particles.forEach(p => {
-            p.mesh.position.y += 1.2;
-        });
     }
 
     createInfoPanel() {
@@ -577,30 +581,16 @@ export class IdealScene {
             }
         });
 
-        // Update particles
+        // Update particles with cylindrical bounds for the scuba tank
         if (this.particleSystem) {
-            this.particleSystem.particles.forEach(p => {
-                p.mesh.position.y -= 1.2;
-            });
-
-            this.particleSystem.update(deltaTime);
-
-            this.particleSystem.particles.forEach(p => {
-                p.mesh.position.y += 1.2;
-            });
+            this.particleSystem.update(deltaTime, false, this.cylinderParams);
         }
     }
 
     setParticleCount(count) {
         if (this.particleSystem) {
-            const currentCount = this.particleSystem.getCount();
+            // New particles are automatically created at centerOffset position
             this.particleSystem.setParticleCount(count);
-
-            if (count > currentCount) {
-                this.particleSystem.particles.slice(currentCount).forEach(p => {
-                    p.mesh.position.y += 1.2;
-                });
-            }
         }
     }
 

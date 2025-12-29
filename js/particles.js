@@ -18,6 +18,7 @@ export class ParticleSystem {
         this.temperature = 273; // Kelvin
         this.animationSpeed = 1;
         this.bounds = { x: 2, y: 2, z: 2 }; // Half-extents
+        this.centerOffset = { x: 0, y: 0, z: 0 }; // Container center position
     }
 
     createParticles(count = this.options.count) {
@@ -40,7 +41,7 @@ export class ParticleSystem {
         const material = new THREE.MeshPhongMaterial({
             color: color,
             emissive: color,
-            emissiveIntensity: 0.3,
+            emissiveIntensity: 0.4,
             shininess: 100,
             transparent: true,
             opacity: 0.9
@@ -48,23 +49,28 @@ export class ParticleSystem {
 
         const mesh = new THREE.Mesh(geometry, material);
 
-        // Position
+        // Position relative to center offset
         if (position) {
             mesh.position.copy(position);
         } else {
             mesh.position.set(
-                (Math.random() - 0.5) * this.bounds.x * 1.8,
-                (Math.random() - 0.5) * this.bounds.y * 1.8,
-                (Math.random() - 0.5) * this.bounds.z * 1.8
+                this.centerOffset.x + (Math.random() - 0.5) * this.bounds.x * 1.6,
+                this.centerOffset.y + (Math.random() - 0.5) * this.bounds.y * 1.6,
+                this.centerOffset.z + (Math.random() - 0.5) * this.bounds.z * 1.6
             );
         }
 
-        // Velocity based on temperature
+        // Velocity based on temperature (Maxwell-Boltzmann distribution approximation)
         const baseSpeed = this.options.baseSpeed * speedFactor;
+        // Random direction with Gaussian-like speed distribution
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const speed = baseSpeed * (0.5 + Math.random());
+
         const velocity = new THREE.Vector3(
-            (Math.random() - 0.5) * baseSpeed,
-            (Math.random() - 0.5) * baseSpeed,
-            (Math.random() - 0.5) * baseSpeed
+            speed * Math.sin(phi) * Math.cos(theta),
+            speed * Math.sin(phi) * Math.sin(theta),
+            speed * Math.cos(phi)
         );
 
         this.scene.add(mesh);
@@ -78,7 +84,7 @@ export class ParticleSystem {
             const trailMaterial = new THREE.LineBasicMaterial({
                 color: color,
                 transparent: true,
-                opacity: 0.3
+                opacity: 0.4
             });
             trail = new THREE.Line(trailGeometry, trailMaterial);
             this.scene.add(trail);
@@ -91,7 +97,8 @@ export class ParticleSystem {
             trailPositions: [],
             radius,
             colliding: false,
-            collisionTime: 0
+            collisionTime: 0,
+            baseColor: color.clone()
         };
 
         this.particles.push(particle);
@@ -117,12 +124,23 @@ export class ParticleSystem {
     }
 
     getParticleColor(speedFactor) {
-        if (speedFactor < 0.8) {
-            return new THREE.Color(0x3b82f6); // Blue - cold/slow
-        } else if (speedFactor < 1.2) {
-            return new THREE.Color(0x10b981); // Green - medium
+        // Smooth color gradient based on temperature/speed
+        // Blue (cold) -> Green (normal) -> Orange -> Red (hot)
+        if (speedFactor < 0.85) {
+            // Cold: blue
+            return new THREE.Color(0x3b82f6);
+        } else if (speedFactor < 1.0) {
+            // Cool: cyan-green
+            return new THREE.Color(0x06b6d4);
+        } else if (speedFactor < 1.15) {
+            // Normal: green
+            return new THREE.Color(0x10b981);
+        } else if (speedFactor < 1.3) {
+            // Warm: yellow-orange
+            return new THREE.Color(0xf59e0b);
         } else {
-            return new THREE.Color(0xef4444); // Red - hot/fast
+            // Hot: red
+            return new THREE.Color(0xef4444);
         }
     }
 
@@ -130,25 +148,36 @@ export class ParticleSystem {
         this.temperature = temp;
         const speedFactor = Math.sqrt(temp / 273);
         const baseSpeed = this.options.baseSpeed * speedFactor;
+        const color = this.getParticleColor(speedFactor);
 
         this.particles.forEach(particle => {
-            // Update velocity magnitude
+            // Preserve direction, scale speed
             const currentSpeed = particle.velocity.length();
             if (currentSpeed > 0.0001) {
-                particle.velocity.normalize().multiplyScalar(baseSpeed);
+                // Scale to new temperature-based speed with some randomness
+                const newSpeed = baseSpeed * (0.7 + Math.random() * 0.6);
+                particle.velocity.normalize().multiplyScalar(newSpeed);
             } else {
+                // Particle was stationary, give it new random velocity
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const speed = baseSpeed * (0.5 + Math.random());
                 particle.velocity.set(
-                    (Math.random() - 0.5) * baseSpeed,
-                    (Math.random() - 0.5) * baseSpeed,
-                    (Math.random() - 0.5) * baseSpeed
+                    speed * Math.sin(phi) * Math.cos(theta),
+                    speed * Math.sin(phi) * Math.sin(theta),
+                    speed * Math.cos(phi)
                 );
             }
 
-            // Update color
-            const color = this.getParticleColor(speedFactor);
-            particle.mesh.material.color = color;
-            particle.mesh.material.emissive = color;
+            // Update color based on temperature
+            particle.mesh.material.color.copy(color);
+            particle.mesh.material.emissive.copy(color);
+            particle.baseColor = color.clone();
         });
+    }
+
+    setCenterOffset(x, y, z) {
+        this.centerOffset = { x, y, z };
     }
 
     setBounds(x, y, z) {
@@ -168,7 +197,49 @@ export class ParticleSystem {
         }
     }
 
-    update(deltaTime) {
+    // Constrain particles to cylindrical bounds (for piston, cooker, etc.)
+    constrainToCylinder(particle, cylinderRadius, yMin, yMax) {
+        const mesh = particle.mesh;
+        const velocity = particle.velocity;
+        const radius = particle.radius;
+        let collided = false;
+
+        // Radial constraint (circular cross-section)
+        const dx = mesh.position.x - this.centerOffset.x;
+        const dz = mesh.position.z - this.centerOffset.z;
+        const distFromAxis = Math.sqrt(dx * dx + dz * dz);
+        const maxDist = cylinderRadius - radius;
+
+        if (distFromAxis > maxDist) {
+            // Push back to cylinder wall
+            const scale = maxDist / distFromAxis;
+            mesh.position.x = this.centerOffset.x + dx * scale;
+            mesh.position.z = this.centerOffset.z + dz * scale;
+
+            // Reflect velocity (tangent to cylinder wall)
+            const nx = dx / distFromAxis;
+            const nz = dz / distFromAxis;
+            const dot = velocity.x * nx + velocity.z * nz;
+            velocity.x -= 2 * dot * nx;
+            velocity.z -= 2 * dot * nz;
+            collided = true;
+        }
+
+        // Y bounds (floor and ceiling/piston)
+        if (mesh.position.y - radius < yMin) {
+            mesh.position.y = yMin + radius;
+            velocity.y = Math.abs(velocity.y);
+            collided = true;
+        } else if (mesh.position.y + radius > yMax) {
+            mesh.position.y = yMax - radius;
+            velocity.y = -Math.abs(velocity.y);
+            collided = true;
+        }
+
+        return collided;
+    }
+
+    update(deltaTime, useBoxBounds = true, cylinderParams = null) {
         const speedFactor = Math.sqrt(this.temperature / 273);
 
         this.particles.forEach((particle, index) => {
@@ -176,64 +247,76 @@ export class ParticleSystem {
             const velocity = particle.velocity;
             const radius = particle.radius;
 
-            // Apply velocity
+            // Apply velocity with frame-rate independent movement
             const speedMultiplier = this.animationSpeed * deltaTime * 50;
             mesh.position.x += velocity.x * speedMultiplier;
             mesh.position.y += velocity.y * speedMultiplier;
             mesh.position.z += velocity.z * speedMultiplier;
 
-            // Update color based on current speed
-            const speed = velocity.length() * speedFactor;
-            const color = this.getParticleColor(speed * 30);
-            mesh.material.color = color;
-            mesh.material.emissive = color;
-
-            // Wall collisions
             let collided = false;
 
-            if (mesh.position.x + radius > this.bounds.x) {
-                mesh.position.x = this.bounds.x - radius;
-                velocity.x *= -1;
-                collided = true;
-            } else if (mesh.position.x - radius < -this.bounds.x) {
-                mesh.position.x = -this.bounds.x + radius;
-                velocity.x *= -1;
-                collided = true;
+            if (cylinderParams) {
+                // Use cylindrical bounds
+                collided = this.constrainToCylinder(
+                    particle,
+                    cylinderParams.radius,
+                    cylinderParams.yMin,
+                    cylinderParams.yMax
+                );
+            } else if (useBoxBounds) {
+                // Use box bounds (default)
+                const minX = this.centerOffset.x - this.bounds.x;
+                const maxX = this.centerOffset.x + this.bounds.x;
+                const minY = this.centerOffset.y - this.bounds.y;
+                const maxY = this.centerOffset.y + this.bounds.y;
+                const minZ = this.centerOffset.z - this.bounds.z;
+                const maxZ = this.centerOffset.z + this.bounds.z;
+
+                if (mesh.position.x + radius > maxX) {
+                    mesh.position.x = maxX - radius;
+                    velocity.x *= -1;
+                    collided = true;
+                } else if (mesh.position.x - radius < minX) {
+                    mesh.position.x = minX + radius;
+                    velocity.x *= -1;
+                    collided = true;
+                }
+
+                if (mesh.position.y + radius > maxY) {
+                    mesh.position.y = maxY - radius;
+                    velocity.y *= -1;
+                    collided = true;
+                } else if (mesh.position.y - radius < minY) {
+                    mesh.position.y = minY + radius;
+                    velocity.y *= -1;
+                    collided = true;
+                }
+
+                if (mesh.position.z + radius > maxZ) {
+                    mesh.position.z = maxZ - radius;
+                    velocity.z *= -1;
+                    collided = true;
+                } else if (mesh.position.z - radius < minZ) {
+                    mesh.position.z = minZ + radius;
+                    velocity.z *= -1;
+                    collided = true;
+                }
             }
 
-            if (mesh.position.y + radius > this.bounds.y) {
-                mesh.position.y = this.bounds.y - radius;
-                velocity.y *= -1;
-                collided = true;
-            } else if (mesh.position.y - radius < -this.bounds.y) {
-                mesh.position.y = -this.bounds.y + radius;
-                velocity.y *= -1;
-                collided = true;
-            }
-
-            if (mesh.position.z + radius > this.bounds.z) {
-                mesh.position.z = this.bounds.z - radius;
-                velocity.z *= -1;
-                collided = true;
-            } else if (mesh.position.z - radius < -this.bounds.z) {
-                mesh.position.z = -this.bounds.z + radius;
-                velocity.z *= -1;
-                collided = true;
-            }
-
-            // Collision highlighting
+            // Collision highlighting with smooth fade
             if (collided && this.options.showCollisions) {
                 particle.colliding = true;
-                particle.collisionTime = 10;
-                mesh.material.emissiveIntensity = 0.8;
+                particle.collisionTime = 8;
+                mesh.material.emissiveIntensity = 1.0;
             } else if (particle.collisionTime > 0) {
                 particle.collisionTime -= deltaTime;
-                mesh.material.emissiveIntensity = 0.3 + 0.5 * (particle.collisionTime / 10);
+                const fade = Math.max(0, particle.collisionTime / 8);
+                mesh.material.emissiveIntensity = 0.4 + 0.6 * fade;
             } else {
-                mesh.material.emissiveIntensity = 0.3;
+                mesh.material.emissiveIntensity = 0.4;
             }
 
-            // Particle-particle collisions
+            // Particle-particle collisions (elastic)
             for (let j = index + 1; j < this.particles.length; j++) {
                 const other = this.particles[j];
                 const dx = mesh.position.x - other.mesh.position.x;
@@ -243,7 +326,7 @@ export class ParticleSystem {
                 const minDist = radius + other.radius;
 
                 if (dist < minDist && dist > 0.001) {
-                    // Elastic collision
+                    // Elastic collision response
                     const nx = dx / dist;
                     const ny = dy / dist;
                     const nz = dz / dist;
@@ -256,6 +339,7 @@ export class ParticleSystem {
 
                     if (dvn > 0) continue; // Already separating
 
+                    // Apply impulse
                     velocity.x -= dvn * nx;
                     velocity.y -= dvn * ny;
                     velocity.z -= dvn * nz;
@@ -264,7 +348,7 @@ export class ParticleSystem {
                     other.velocity.y += dvn * ny;
                     other.velocity.z += dvn * nz;
 
-                    // Separate particles
+                    // Separate overlapping particles
                     const overlap = minDist - dist;
                     mesh.position.x += overlap * nx * 0.5;
                     mesh.position.y += overlap * ny * 0.5;
@@ -272,10 +356,16 @@ export class ParticleSystem {
                     other.mesh.position.x -= overlap * nx * 0.5;
                     other.mesh.position.y -= overlap * ny * 0.5;
                     other.mesh.position.z -= overlap * nz * 0.5;
+
+                    // Both particles flash on collision
+                    if (this.options.showCollisions) {
+                        particle.collisionTime = 5;
+                        other.collisionTime = 5;
+                    }
                 }
             }
 
-            // Update trail
+            // Update trail if enabled
             if (this.options.showTrails && particle.trail) {
                 particle.trailPositions.push(mesh.position.clone());
                 if (particle.trailPositions.length > 10) {
@@ -291,7 +381,20 @@ export class ParticleSystem {
                 particle.trail.geometry.attributes.position.needsUpdate = true;
                 particle.trail.geometry.setDrawRange(0, particle.trailPositions.length);
                 particle.trail.visible = true;
+            } else if (particle.trail) {
+                particle.trail.visible = false;
             }
+        });
+    }
+
+    // Reposition all particles within current bounds
+    repositionParticles() {
+        this.particles.forEach(particle => {
+            particle.mesh.position.set(
+                this.centerOffset.x + (Math.random() - 0.5) * this.bounds.x * 1.6,
+                this.centerOffset.y + (Math.random() - 0.5) * this.bounds.y * 1.6,
+                this.centerOffset.z + (Math.random() - 0.5) * this.bounds.z * 1.6
+            );
         });
     }
 

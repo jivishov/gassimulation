@@ -6,6 +6,7 @@
  * - Adjustable piston that changes volume
  * - Particles compress as volume decreases
  * - Visual pressure indicator
+ * - Proper cylindrical particle containment
  */
 
 import { ParticleSystem } from './particles.js';
@@ -17,19 +18,22 @@ export class BoyleScene {
         this.group = new THREE.Group();
         this.scene.add(this.group);
 
-        // Gas state
+        // Gas state - using real physics
+        // At constant T=273K and n=1mol, using PV = nRT
+        // Initial: V=5L, P = nRT/V = 1*0.0821*273/5 = 4.48 atm (we'll scale for visualization)
         this.state = {
             volume: 5.0,        // Liters
             pressure: 2.0,      // atm
             temperature: 273,   // K (constant)
             moles: 1.0,         // mol (constant)
-            k: 10.0             // P*V constant
+            k: 10.0             // P*V constant (L·atm)
         };
 
         // Cylinder dimensions
-        this.cylinderRadius = 1.5;
-        this.maxHeight = 4;
-        this.minHeight = 1;
+        this.cylinderRadius = 1.4;
+        this.cylinderBaseY = 0.15;  // Bottom of gas chamber
+        this.maxPistonY = 3.5;      // Piston at max volume
+        this.minPistonY = 1.0;      // Piston at min volume
 
         // Scene objects
         this.cylinder = null;
@@ -40,6 +44,11 @@ export class BoyleScene {
 
         // Particle system
         this.particleSystem = null;
+        this.cylinderParams = {
+            radius: this.cylinderRadius - 0.1,
+            yMin: this.cylinderBaseY,
+            yMax: this.maxPistonY - 0.1
+        };
 
         this.init();
     }
@@ -49,12 +58,12 @@ export class BoyleScene {
         this.createPiston();
         this.createPressureGauge();
         this.createParticles();
-        this.createLabels();
+        this.createBase();
         this.setupLighting();
 
-        // Set camera position
-        this.camera.position.set(6, 4, 6);
-        this.camera.lookAt(0, 0, 0);
+        // Set camera position for good view
+        this.camera.position.set(5, 3, 5);
+        this.camera.lookAt(0, 1.5, 0);
     }
 
     createCylinder() {
@@ -62,7 +71,7 @@ export class BoyleScene {
         const cylinderGeometry = new THREE.CylinderGeometry(
             this.cylinderRadius,
             this.cylinderRadius,
-            this.maxHeight,
+            4,
             32,
             1,
             true // Open ended
@@ -71,34 +80,34 @@ export class BoyleScene {
         const cylinderMaterial = new THREE.MeshPhysicalMaterial({
             color: 0x88ccff,
             transparent: true,
-            opacity: 0.2,
+            opacity: 0.15,
             side: THREE.DoubleSide,
-            metalness: 0.1,
+            metalness: 0.0,
             roughness: 0.1,
-            transmission: 0.9
+            envMapIntensity: 0.5
         });
 
         this.cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
-        this.cylinder.position.y = this.maxHeight / 2;
+        this.cylinder.position.y = 2;
         this.group.add(this.cylinder);
 
-        // Cylinder base (solid)
+        // Cylinder base plate (sealed bottom)
         const baseGeometry = new THREE.CylinderGeometry(
-            this.cylinderRadius + 0.1,
-            this.cylinderRadius + 0.2,
-            0.3,
+            this.cylinderRadius,
+            this.cylinderRadius,
+            0.15,
             32
         );
-        const baseMaterial = new THREE.MeshStandardMaterial({
-            color: 0x444444,
-            metalness: 0.8,
-            roughness: 0.3
+        const metalMaterial = new THREE.MeshStandardMaterial({
+            color: 0x555555,
+            metalness: 0.9,
+            roughness: 0.2
         });
-        const base = new THREE.Mesh(baseGeometry, baseMaterial);
-        base.position.y = -0.15;
-        this.group.add(base);
+        const basePlate = new THREE.Mesh(baseGeometry, metalMaterial);
+        basePlate.position.y = 0.075;
+        this.group.add(basePlate);
 
-        // Cylinder rim at top
+        // Cylinder rim at top (guide for piston)
         const rimGeometry = new THREE.TorusGeometry(this.cylinderRadius, 0.05, 8, 32);
         const rimMaterial = new THREE.MeshStandardMaterial({
             color: 0x666666,
@@ -107,223 +116,272 @@ export class BoyleScene {
         });
         const topRim = new THREE.Mesh(rimGeometry, rimMaterial);
         topRim.rotation.x = Math.PI / 2;
-        topRim.position.y = this.maxHeight;
+        topRim.position.y = 4;
         this.group.add(topRim);
+
+        // Inner glow effect
+        const glowGeometry = new THREE.CylinderGeometry(
+            this.cylinderRadius - 0.02,
+            this.cylinderRadius - 0.02,
+            3.8,
+            32,
+            1,
+            true
+        );
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x4488ff,
+            transparent: true,
+            opacity: 0.03,
+            side: THREE.BackSide
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.y = 2;
+        this.group.add(glow);
     }
 
     createPiston() {
-        // Piston head
+        const pistonGroup = new THREE.Group();
+        this.group.add(pistonGroup);
+
+        // Piston head (fits snugly in cylinder)
         const pistonGeometry = new THREE.CylinderGeometry(
-            this.cylinderRadius - 0.05,
-            this.cylinderRadius - 0.05,
-            0.2,
+            this.cylinderRadius - 0.03,
+            this.cylinderRadius - 0.03,
+            0.15,
             32
         );
         const pistonMaterial = new THREE.MeshStandardMaterial({
             color: 0x888888,
             metalness: 0.9,
-            roughness: 0.2
+            roughness: 0.15
         });
 
-        this.piston = new THREE.Mesh(pistonGeometry, pistonMaterial);
-        this.group.add(this.piston);
+        const pistonHead = new THREE.Mesh(pistonGeometry, pistonMaterial);
+        pistonGroup.add(pistonHead);
+
+        // Rubber seal ring on piston
+        const sealGeometry = new THREE.TorusGeometry(this.cylinderRadius - 0.05, 0.04, 8, 32);
+        const sealMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            roughness: 0.95
+        });
+        const seal = new THREE.Mesh(sealGeometry, sealMaterial);
+        seal.rotation.x = Math.PI / 2;
+        seal.position.y = -0.05;
+        pistonGroup.add(seal);
 
         // Piston rod
-        const rodGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2, 16);
+        const rodGeometry = new THREE.CylinderGeometry(0.12, 0.12, 1.8, 16);
         const rodMaterial = new THREE.MeshStandardMaterial({
-            color: 0x666666,
-            metalness: 0.9,
-            roughness: 0.3
+            color: 0x777777,
+            metalness: 0.95,
+            roughness: 0.15
         });
         const rod = new THREE.Mesh(rodGeometry, rodMaterial);
-        rod.position.y = 1.1;
-        this.piston.add(rod);
+        rod.position.y = 1;
+        pistonGroup.add(rod);
 
         // Piston handle (T-shape)
-        const handleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1.2, 16);
+        const handleGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.0, 16);
         const handleMaterial = new THREE.MeshStandardMaterial({
-            color: 0xcc4444,
+            color: 0xcc3333,
             metalness: 0.3,
             roughness: 0.5
         });
         this.pistonHandle = new THREE.Mesh(handleGeometry, handleMaterial);
         this.pistonHandle.rotation.z = Math.PI / 2;
-        this.pistonHandle.position.y = 2.2;
-        this.piston.add(this.pistonHandle);
+        this.pistonHandle.position.y = 1.95;
+        pistonGroup.add(this.pistonHandle);
 
         // Handle grips
-        const gripGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const gripGeometry = new THREE.SphereGeometry(0.12, 16, 16);
         const grip1 = new THREE.Mesh(gripGeometry, handleMaterial);
-        grip1.position.x = 0.6;
-        this.pistonHandle.add(grip1);
+        grip1.position.set(0.5, 1.95, 0);
+        pistonGroup.add(grip1);
         const grip2 = new THREE.Mesh(gripGeometry, handleMaterial);
-        grip2.position.x = -0.6;
-        this.pistonHandle.add(grip2);
+        grip2.position.set(-0.5, 1.95, 0);
+        pistonGroup.add(grip2);
 
-        // Rubber seal ring on piston
-        const sealGeometry = new THREE.TorusGeometry(this.cylinderRadius - 0.1, 0.03, 8, 32);
-        const sealMaterial = new THREE.MeshStandardMaterial({
-            color: 0x222222,
-            roughness: 0.9
-        });
-        const seal = new THREE.Mesh(sealGeometry, sealMaterial);
-        seal.rotation.x = Math.PI / 2;
-        seal.position.y = -0.1;
-        this.piston.add(seal);
-
+        this.piston = pistonGroup;
         this.updatePistonPosition();
     }
 
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
-        gaugeGroup.position.set(this.cylinderRadius + 1.2, 2, 0);
+        gaugeGroup.position.set(this.cylinderRadius + 1.0, 2.5, 0);
+        gaugeGroup.rotation.y = -Math.PI / 6;
         this.group.add(gaugeGroup);
 
-        // Gauge body
-        const gaugeBody = new THREE.CylinderGeometry(0.6, 0.6, 0.2, 32);
-        const gaugeMaterial = new THREE.MeshStandardMaterial({
+        // Gauge body (circular housing)
+        const housingGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.15, 32);
+        const housingMaterial = new THREE.MeshStandardMaterial({
             color: 0x333333,
-            metalness: 0.8,
-            roughness: 0.3
+            metalness: 0.85,
+            roughness: 0.2
         });
-        const gauge = new THREE.Mesh(gaugeBody, gaugeMaterial);
-        gauge.rotation.z = Math.PI / 2;
-        gaugeGroup.add(gauge);
+        const housing = new THREE.Mesh(housingGeometry, housingMaterial);
+        housing.rotation.x = Math.PI / 2;
+        gaugeGroup.add(housing);
 
-        // Gauge face
-        const faceGeometry = new THREE.CircleGeometry(0.55, 32);
-        const faceMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        // Gauge face (white background)
+        const faceGeometry = new THREE.CircleGeometry(0.45, 32);
+        const faceMaterial = new THREE.MeshBasicMaterial({ color: 0xf8f8f8 });
         const face = new THREE.Mesh(faceGeometry, faceMaterial);
-        face.position.x = 0.11;
-        face.rotation.y = Math.PI / 2;
+        face.position.z = 0.08;
         gaugeGroup.add(face);
 
-        // Gauge markings (arc)
-        const arcGeometry = new THREE.RingGeometry(0.35, 0.45, 32, 1, -Math.PI * 0.75, Math.PI * 1.5);
-        const arcMaterial = new THREE.MeshBasicMaterial({
-            color: 0xcccccc,
-            side: THREE.DoubleSide
-        });
-        const arc = new THREE.Mesh(arcGeometry, arcMaterial);
-        arc.position.x = 0.12;
-        arc.rotation.y = Math.PI / 2;
-        gaugeGroup.add(arc);
+        // Pressure zones (green-yellow-red arc)
+        const createZone = (startAngle, arcLength, color) => {
+            const zoneGeometry = new THREE.RingGeometry(0.28, 0.4, 24, 1, startAngle, arcLength);
+            const zoneMaterial = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
+            const zone = new THREE.Mesh(zoneGeometry, zoneMaterial);
+            zone.position.z = 0.081;
+            return zone;
+        };
 
-        // Pressure zones (green-yellow-red)
-        const greenZone = new THREE.RingGeometry(0.36, 0.44, 16, 1, -Math.PI * 0.75, Math.PI * 0.5);
-        const greenMaterial = new THREE.MeshBasicMaterial({ color: 0x22cc22, side: THREE.DoubleSide });
-        const green = new THREE.Mesh(greenZone, greenMaterial);
-        green.position.x = 0.115;
-        green.rotation.y = Math.PI / 2;
-        gaugeGroup.add(green);
+        // Low pressure zone (green): 1-2 atm
+        gaugeGroup.add(createZone(-Math.PI * 0.75, Math.PI * 0.5, 0x22aa22));
+        // Medium pressure zone (yellow): 2-3.5 atm
+        gaugeGroup.add(createZone(-Math.PI * 0.25, Math.PI * 0.5, 0xdddd22));
+        // High pressure zone (red): 3.5-5 atm
+        gaugeGroup.add(createZone(Math.PI * 0.25, Math.PI * 0.5, 0xdd2222));
 
-        const yellowZone = new THREE.RingGeometry(0.36, 0.44, 16, 1, -Math.PI * 0.25, Math.PI * 0.5);
-        const yellowMaterial = new THREE.MeshBasicMaterial({ color: 0xcccc22, side: THREE.DoubleSide });
-        const yellow = new THREE.Mesh(yellowZone, yellowMaterial);
-        yellow.position.x = 0.115;
-        yellow.rotation.y = Math.PI / 2;
-        gaugeGroup.add(yellow);
-
-        const redZone = new THREE.RingGeometry(0.36, 0.44, 16, 1, Math.PI * 0.25, Math.PI * 0.5);
-        const redMaterial = new THREE.MeshBasicMaterial({ color: 0xcc2222, side: THREE.DoubleSide });
-        const red = new THREE.Mesh(redZone, redMaterial);
-        red.position.x = 0.115;
-        red.rotation.y = Math.PI / 2;
-        gaugeGroup.add(red);
+        // Scale markings
+        for (let i = 0; i <= 8; i++) {
+            const angle = -Math.PI * 0.75 + (i / 8) * Math.PI * 1.5;
+            const isMain = i % 2 === 0;
+            const length = isMain ? 0.08 : 0.05;
+            const markGeometry = new THREE.BoxGeometry(length, 0.02, 0.005);
+            const markMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const mark = new THREE.Mesh(markGeometry, markMaterial);
+            const radius = 0.35;
+            mark.position.set(
+                Math.cos(angle) * radius,
+                Math.sin(angle) * radius,
+                0.082
+            );
+            mark.rotation.z = angle;
+            gaugeGroup.add(mark);
+        }
 
         // Needle
-        const needleGeometry = new THREE.BoxGeometry(0.02, 0.4, 0.02);
+        const needleGeometry = new THREE.BoxGeometry(0.32, 0.02, 0.01);
         const needleMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         this.pressureNeedle = new THREE.Mesh(needleGeometry, needleMaterial);
-        this.pressureNeedle.position.set(0.13, 0, 0);
-        this.pressureNeedle.geometry.translate(0, 0.15, 0);
+        this.pressureNeedle.geometry.translate(0.12, 0, 0);
+        this.pressureNeedle.position.z = 0.09;
         gaugeGroup.add(this.pressureNeedle);
 
-        // Needle pivot
-        const pivotGeometry = new THREE.SphereGeometry(0.05, 16, 16);
-        const pivot = new THREE.Mesh(pivotGeometry, needleMaterial);
-        pivot.position.x = 0.13;
+        // Needle center pivot
+        const pivotGeometry = new THREE.CircleGeometry(0.04, 16);
+        const pivotMaterial = new THREE.MeshBasicMaterial({ color: 0xcc0000 });
+        const pivot = new THREE.Mesh(pivotGeometry, pivotMaterial);
+        pivot.position.z = 0.091;
         gaugeGroup.add(pivot);
 
-        // Connection pipe
-        const pipeGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.7, 8);
+        // Connection pipe to cylinder
+        const pipeGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.8, 8);
         const pipeMaterial = new THREE.MeshStandardMaterial({
-            color: 0x666666,
-            metalness: 0.8
+            color: 0x555555,
+            metalness: 0.85
         });
         const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
         pipe.rotation.z = Math.PI / 2;
-        pipe.position.set(-0.5, 0, 0);
+        pipe.position.set(-0.6, 0, 0);
         gaugeGroup.add(pipe);
+
+        // Pipe elbow to cylinder wall
+        const elbowGeometry = new THREE.TorusGeometry(0.15, 0.06, 8, 8, Math.PI / 2);
+        const elbow = new THREE.Mesh(elbowGeometry, pipeMaterial);
+        elbow.position.set(-1.0, -0.15, 0);
+        elbow.rotation.y = Math.PI / 2;
+        gaugeGroup.add(elbow);
 
         this.pressureGauge = gaugeGroup;
         this.updatePressureGauge();
     }
 
-    createLabels() {
-        // Create volume indicator arrow
-        const arrowGroup = new THREE.Group();
-        arrowGroup.position.set(-this.cylinderRadius - 0.5, 0, 0);
-        this.group.add(arrowGroup);
+    createBase() {
+        // Base platform
+        const baseGeometry = new THREE.CylinderGeometry(2, 2.2, 0.2, 32);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+            color: 0x444444,
+            metalness: 0.7,
+            roughness: 0.3
+        });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        base.position.y = -0.1;
+        this.group.add(base);
 
-        // Arrow shaft
-        const shaftGeometry = new THREE.BoxGeometry(0.05, 1, 0.05);
-        const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0x4f46e5 });
-        const shaft = new THREE.Mesh(shaftGeometry, arrowMaterial);
-        arrowGroup.add(shaft);
-
-        // Arrow heads
-        const headGeometry = new THREE.ConeGeometry(0.1, 0.2, 8);
-        const headUp = new THREE.Mesh(headGeometry, arrowMaterial);
-        headUp.position.y = 0.6;
-        arrowGroup.add(headUp);
-
-        const headDown = new THREE.Mesh(headGeometry, arrowMaterial);
-        headDown.position.y = -0.6;
-        headDown.rotation.z = Math.PI;
-        arrowGroup.add(headDown);
-
-        this.volumeArrow = arrowGroup;
+        // Floor shadow catcher
+        const floorGeometry = new THREE.PlaneGeometry(8, 8);
+        const floorMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333340,
+            roughness: 0.9
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.2;
+        this.group.add(floor);
     }
 
     createParticles() {
         this.particleSystem = new ParticleSystem(this.scene, {
             count: 50,
-            baseSpeed: 0.015,
+            baseSpeed: 0.018,
             particleSize: 0.06,
             showCollisions: true
         });
 
-        this.updateParticleBounds();
+        // Set center and bounds for cylinder
+        const pistonY = this.getPistonY();
+        const centerY = (this.cylinderBaseY + pistonY) / 2;
+        const halfHeight = (pistonY - this.cylinderBaseY) / 2;
+
+        this.particleSystem.setCenterOffset(0, centerY, 0);
+        this.particleSystem.setBounds(
+            this.cylinderRadius - 0.15,
+            halfHeight - 0.1,
+            this.cylinderRadius - 0.15
+        );
+
         this.particleSystem.createParticles();
+        this.particleSystem.setTemperature(this.state.temperature);
     }
 
     setupLighting() {
-        // Additional point light inside cylinder
-        const innerLight = new THREE.PointLight(0x4488ff, 0.5, 5);
+        // Point light inside cylinder for particle illumination
+        const innerLight = new THREE.PointLight(0x6699ff, 0.6, 4);
         innerLight.position.set(0, 2, 0);
         this.group.add(innerLight);
+
+        // Spot light on gauge
+        const gaugeLight = new THREE.SpotLight(0xffffff, 0.4, 5, Math.PI / 6);
+        gaugeLight.position.set(3, 4, 2);
+        gaugeLight.target.position.set(this.cylinderRadius + 1.0, 2.5, 0);
+        this.group.add(gaugeLight);
+        this.group.add(gaugeLight.target);
+    }
+
+    getPistonY() {
+        // Map volume (2-10 L) to piston height
+        const volumeRange = 10 - 2;
+        const heightRange = this.maxPistonY - this.minPistonY;
+        const normalizedVolume = (this.state.volume - 2) / volumeRange;
+        return this.minPistonY + normalizedVolume * heightRange;
     }
 
     updatePistonPosition() {
-        // Map volume (2-10 L) to piston height
-        const volumeRange = 10 - 2;
-        const heightRange = this.maxHeight - this.minHeight;
-        const normalizedVolume = (this.state.volume - 2) / volumeRange;
-        const pistonHeight = this.minHeight + normalizedVolume * heightRange;
+        const pistonY = this.getPistonY();
+        this.piston.position.y = pistonY;
 
-        this.piston.position.y = pistonHeight;
-
-        // Update volume arrow position
-        if (this.volumeArrow) {
-            this.volumeArrow.position.y = pistonHeight / 2;
-            this.volumeArrow.scale.y = pistonHeight / 2;
-        }
+        // Update cylinder params for particle containment
+        this.cylinderParams.yMax = pistonY - 0.1;
     }
 
     updatePressureGauge() {
         // Map pressure (1-5 atm) to needle angle
-        // -135 degrees (low) to +135 degrees (high)
+        // -135 degrees (1 atm) to +135 degrees (5 atm)
         const minAngle = -Math.PI * 0.75;
         const maxAngle = Math.PI * 0.75;
         const pressureRange = 5 - 1;
@@ -331,37 +389,40 @@ export class BoyleScene {
         const angle = minAngle + normalizedPressure * (maxAngle - minAngle);
 
         if (this.pressureNeedle) {
-            this.pressureNeedle.rotation.x = angle;
+            this.pressureNeedle.rotation.z = angle;
         }
     }
 
     updateParticleBounds() {
-        // Calculate cylinder height based on volume
-        const volumeRange = 10 - 2;
-        const heightRange = this.maxHeight - this.minHeight;
-        const normalizedVolume = (this.state.volume - 2) / volumeRange;
-        const height = this.minHeight + normalizedVolume * heightRange;
+        const pistonY = this.getPistonY();
+        const centerY = (this.cylinderBaseY + pistonY) / 2;
+        const halfHeight = (pistonY - this.cylinderBaseY) / 2 - 0.05;
 
-        // Set bounds for particles (cylinder shape approximated as box)
-        const halfHeight = height / 2;
-        const halfRadius = this.cylinderRadius - 0.15;
+        this.particleSystem.setCenterOffset(0, centerY, 0);
+        this.particleSystem.setBounds(
+            this.cylinderRadius - 0.15,
+            halfHeight,
+            this.cylinderRadius - 0.15
+        );
 
-        this.particleSystem.setBounds(halfRadius, halfHeight - 0.1, halfRadius);
+        // Update cylinder params
+        this.cylinderParams.yMax = pistonY - 0.08;
 
-        // Move particles that are outside new bounds
+        // Push particles that are now outside the piston
         this.particleSystem.particles.forEach(particle => {
-            if (particle.mesh.position.y > halfHeight - 0.1) {
-                particle.mesh.position.y = halfHeight - 0.2;
+            if (particle.mesh.position.y > pistonY - 0.15) {
+                particle.mesh.position.y = pistonY - 0.2;
+                particle.velocity.y = -Math.abs(particle.velocity.y);
             }
-            if (particle.mesh.position.y < 0.1) {
-                particle.mesh.position.y = 0.2;
+            if (particle.mesh.position.y < this.cylinderBaseY + 0.1) {
+                particle.mesh.position.y = this.cylinderBaseY + 0.15;
             }
         });
     }
 
     setVolume(volume) {
         this.state.volume = volume;
-        // Boyle's Law: P₁V₁ = P₂V₂ = k
+        // Boyle's Law: P₁V₁ = P₂V₂ = k (constant at fixed T and n)
         this.state.pressure = this.state.k / volume;
 
         this.updatePistonPosition();
@@ -377,7 +438,8 @@ export class BoyleScene {
 
     update(deltaTime) {
         if (this.particleSystem) {
-            this.particleSystem.update(deltaTime);
+            // Use cylindrical constraint for proper piston-cylinder physics
+            this.particleSystem.update(deltaTime, false, this.cylinderParams);
         }
     }
 
@@ -422,5 +484,6 @@ export class BoyleScene {
         };
         this.setVolume(5.0);
         this.particleSystem.setTemperature(273);
+        this.particleSystem.repositionParticles();
     }
 }

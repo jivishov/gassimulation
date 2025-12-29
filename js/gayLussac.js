@@ -367,15 +367,19 @@ export class GayLussacScene {
             showCollisions: true
         });
 
-        // Bounds for inside cooker
+        // Cooker center is at y=1.1 (cooker body center)
+        this.particleSystem.setCenterOffset(0, 1.1, 0);
+
+        // Cylindrical bounds for pressure cooker (radius ~1.1, height from bottom to lid)
+        this.cylinderParams = {
+            radius: 1.1,
+            yMin: 0.35,  // Cooker base
+            yMax: 1.9    // Just below lid
+        };
+
         this.particleSystem.setBounds(1.1, 0.6, 1.1);
         this.particleSystem.createParticles();
         this.particleSystem.setTemperature(this.state.temperature);
-
-        // Offset particles to cooker position
-        this.particleSystem.particles.forEach(p => {
-            p.mesh.position.y += 1.1;
-        });
     }
 
     createKitchenElements() {
@@ -497,29 +501,15 @@ export class GayLussacScene {
         this.updateSteamValve();
 
         if (this.particleSystem) {
-            // Offset for cooker position
-            this.particleSystem.particles.forEach(p => {
-                p.mesh.position.y -= 1.1;
-            });
-
-            this.particleSystem.update(deltaTime);
-
-            this.particleSystem.particles.forEach(p => {
-                p.mesh.position.y += 1.1;
-            });
+            // Use cylindrical bounds for the pressure cooker
+            this.particleSystem.update(deltaTime, false, this.cylinderParams);
         }
     }
 
     setParticleCount(count) {
         if (this.particleSystem) {
-            const currentCount = this.particleSystem.getCount();
+            // New particles are automatically created at centerOffset position
             this.particleSystem.setParticleCount(count);
-
-            if (count > currentCount) {
-                this.particleSystem.particles.slice(currentCount).forEach(p => {
-                    p.mesh.position.y += 1.1;
-                });
-            }
         }
     }
 

@@ -361,14 +361,11 @@ export class CharlesScene {
             showCollisions: true
         });
 
+        // Set center offset to balloon position
+        this.particleSystem.setCenterOffset(0, 3.5, 0);
         this.updateParticleBounds();
         this.particleSystem.createParticles();
         this.particleSystem.setTemperature(this.state.temperature);
-
-        // Offset particles to balloon position
-        this.particleSystem.particles.forEach(p => {
-            p.mesh.position.y += 3.5;
-        });
     }
 
     setupLighting() {
@@ -393,7 +390,13 @@ export class CharlesScene {
         this.balloon.scale.set(radiusRatio, radiusRatio, radiusRatio);
 
         // Adjust balloon height to keep basket grounded
-        this.balloon.position.y = 3.5 + (radiusRatio - 1) * 1.5;
+        const newBalloonY = 3.5 + (radiusRatio - 1) * 1.5;
+        this.balloon.position.y = newBalloonY;
+
+        // Update particle center offset to match balloon position
+        if (this.particleSystem) {
+            this.particleSystem.setCenterOffset(0, newBalloonY, 0);
+        }
     }
 
     updateFlames() {
@@ -428,20 +431,8 @@ export class CharlesScene {
         // Update particle speeds
         this.particleSystem.setTemperature(temp);
 
-        // Reposition particles
-        this.particleSystem.particles.forEach(p => {
-            const bounds = this.particleSystem.bounds;
-            if (Math.abs(p.mesh.position.x) > bounds.x ||
-                Math.abs(p.mesh.position.z) > bounds.z) {
-                p.mesh.position.x = (Math.random() - 0.5) * bounds.x * 1.5;
-                p.mesh.position.z = (Math.random() - 0.5) * bounds.z * 1.5;
-            }
-            // Keep y centered on balloon
-            if (p.mesh.position.y < 3.5 - bounds.y ||
-                p.mesh.position.y > 3.5 + bounds.y) {
-                p.mesh.position.y = 3.5 + (Math.random() - 0.5) * bounds.y;
-            }
-        });
+        // Reposition any particles that are outside the new bounds
+        this.particleSystem.repositionParticles();
 
         return this.state;
     }
@@ -459,34 +450,15 @@ export class CharlesScene {
         this.updateFlames();
 
         if (this.particleSystem) {
-            // Offset particle bounds for balloon position
-            const originalUpdate = this.particleSystem.update.bind(this.particleSystem);
-
-            // Temporarily adjust bounds checking for balloon center
-            this.particleSystem.particles.forEach(p => {
-                p.mesh.position.y -= 3.5;
-            });
-
+            // Particle system uses centerOffset for positioning - no manual offset needed
             this.particleSystem.update(deltaTime);
-
-            // Restore positions
-            this.particleSystem.particles.forEach(p => {
-                p.mesh.position.y += 3.5;
-            });
         }
     }
 
     setParticleCount(count) {
         if (this.particleSystem) {
-            const currentCount = this.particleSystem.getCount();
+            // New particles are automatically created at centerOffset position
             this.particleSystem.setParticleCount(count);
-
-            // Offset new particles
-            if (count > currentCount) {
-                this.particleSystem.particles.slice(currentCount).forEach(p => {
-                    p.mesh.position.y += 3.5;
-                });
-            }
         }
     }
 
