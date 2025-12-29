@@ -423,7 +423,7 @@ export class AvogadroScene {
         // Floor
         const floorGeometry = new THREE.PlaneGeometry(15, 15);
         const floorMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8b8b83,
+            color: 0x0f172a,
             roughness: 0.8
         });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -434,7 +434,7 @@ export class AvogadroScene {
         // Back wall
         const wallGeometry = new THREE.PlaneGeometry(15, 8);
         const wallMaterial = new THREE.MeshStandardMaterial({
-            color: 0xf5f5dc,
+            color: 0x111827,
             roughness: 0.9
         });
         const wall = new THREE.Mesh(wallGeometry, wallMaterial);
@@ -686,7 +686,14 @@ export class AvogadroScene {
         // Animate gas flow particles along hose
         this.updateGasFlowParticles();
 
-        if (this.particleSystem) {
+        if (this.particleSystem && this.mainBalloon) {
+            // Keep particle system aligned with the moving balloon so molecules stay inside
+            this.particleSystem.setCenterOffset(
+                this.mainBalloon.position.x,
+                this.mainBalloon.position.y,
+                this.mainBalloon.position.z
+            );
+
             // Particle system uses centerOffset for positioning - no manual offset needed
             this.particleSystem.update(deltaTime);
         }

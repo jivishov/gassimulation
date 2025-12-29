@@ -194,7 +194,7 @@ export class GayLussacScene {
 
     createCooker() {
         const cookerGroup = new THREE.Group();
-        cookerGroup.position.y = 0.35;
+        cookerGroup.position.set(0, 0.1, 0);
         this.group.add(cookerGroup);
 
         // Transparent material for cooker body (to see particles inside)
@@ -348,8 +348,8 @@ export class GayLussacScene {
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
         // Mount gauge on top of the flat lid - prominently visible
-        gaugeGroup.position.set(0.55, 0.25, 0.55);
-        gaugeGroup.rotation.set(-0.35, -0.4, 0); // Angled toward camera
+        gaugeGroup.position.set(0.38, 0.2, 0.38);
+        gaugeGroup.rotation.set(-0.2, -0.3, 0); // Angled toward camera
         this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
         // Gauge housing (chrome finish)
@@ -525,13 +525,13 @@ export class GayLussacScene {
         });
 
         // Cooker center is at y=1.1 (cooker body center)
-        this.particleSystem.setCenterOffset(0, 1.1, 0);
+        this.particleSystem.setCenterOffset(0, 0.95, 0);
 
         // Cylindrical bounds for pressure cooker (radius ~1.1, height from bottom to lid)
         this.cylinderParams = {
             radius: 1.1,
-            yMin: 0.35,  // Cooker base
-            yMax: 1.9    // Just below lid
+            yMin: 0.1,   // Cooker base on stove surface
+            yMax: 1.75   // Just below lid
         };
 
         this.particleSystem.setBounds(1.1, 0.6, 1.1);
