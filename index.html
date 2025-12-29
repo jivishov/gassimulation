@@ -160,11 +160,11 @@
                     <div class="control-group hidden" id="ideal-controls">
                         <div class="control-item">
                             <label for="pressure-ideal">
-                                <span class="var-label">Pressure (P)</span>
+                                <span class="var-label">Tank Pressure (P)</span>
                                 <span class="unit-label">in atm</span>
                             </label>
-                            <input type="range" id="pressure-ideal" min="50" max="200" value="100" step="1">
-                            <span class="value-display" id="pressure-ideal-value">100 atm</span>
+                            <input type="range" id="pressure-ideal" min="50" max="300" value="200" step="5">
+                            <span class="value-display" id="pressure-ideal-value">200 atm</span>
                         </div>
                         <div class="control-item">
                             <label for="volume-ideal">
@@ -328,9 +328,11 @@
         </footer>
     </div>
 
-    <!-- Three.js and dependencies -->
+    <!-- Three.js (global for OrbitControls compatibility) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="main.js"></script>
+
+    <!-- Main application (ES6 module) -->
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
