@@ -113,8 +113,8 @@ export class AvogadroScene {
         cap.position.y = 3.3;
         tankGroup.add(cap);
 
-        // "He" label on tank
-        const labelGeometry = new THREE.PlaneGeometry(0.4, 0.3);
+        // Main ID label on tank (white background)
+        const labelGeometry = new THREE.PlaneGeometry(0.7, 0.5);
         const labelMaterial = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             side: THREE.DoubleSide
@@ -122,6 +122,47 @@ export class AvogadroScene {
         const label = new THREE.Mesh(labelGeometry, labelMaterial);
         label.position.set(0, 2, 0.51);
         tankGroup.add(label);
+
+        // "He" chemical symbol indicator (green box on label)
+        const symbolBgGeometry = new THREE.PlaneGeometry(0.25, 0.25);
+        const symbolBgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x228b22,
+            side: THREE.DoubleSide
+        });
+        const symbolBg = new THREE.Mesh(symbolBgGeometry, symbolBgMaterial);
+        symbolBg.position.set(-0.15, 2.1, 0.515);
+        tankGroup.add(symbolBg);
+
+        // "HELIUM" text label (dark stripe)
+        const textBgGeometry = new THREE.PlaneGeometry(0.6, 0.12);
+        const textBgMaterial = new THREE.MeshBasicMaterial({
+            color: 0x1a1a1a,
+            side: THREE.DoubleSide
+        });
+        const textBg = new THREE.Mesh(textBgGeometry, textBgMaterial);
+        textBg.position.set(0, 1.88, 0.515);
+        tankGroup.add(textBg);
+
+        // Warning stripe at bottom of label (red)
+        const warningGeometry = new THREE.PlaneGeometry(0.6, 0.06);
+        const warningMaterial = new THREE.MeshBasicMaterial({
+            color: 0xcc0000,
+            side: THREE.DoubleSide
+        });
+        const warning = new THREE.Mesh(warningGeometry, warningMaterial);
+        warning.position.set(0, 1.78, 0.515);
+        tankGroup.add(warning);
+
+        // Secondary label on side (rotated)
+        const sideLabel = new THREE.Mesh(labelGeometry.clone(), labelMaterial.clone());
+        sideLabel.position.set(0.51, 2, 0);
+        sideLabel.rotation.y = Math.PI / 2;
+        tankGroup.add(sideLabel);
+
+        const sideSymbolBg = new THREE.Mesh(symbolBgGeometry.clone(), symbolBgMaterial.clone());
+        sideSymbolBg.position.set(0.515, 2.1, -0.15);
+        sideSymbolBg.rotation.y = Math.PI / 2;
+        tankGroup.add(sideSymbolBg);
 
         // Tank stand/base
         const baseGeometry = new THREE.CylinderGeometry(0.6, 0.7, 0.2, 32);
@@ -441,6 +482,17 @@ export class AvogadroScene {
 
         // Set center offset to main balloon position
         this.particleSystem.setCenterOffset(2.5, 3, 0);
+
+        // Use spherical bounds for the balloon - particles must stay inside
+        const volumeRatio = this.state.volume / 22.4;
+        const radiusRatio = Math.cbrt(volumeRatio);
+        const radius = 0.8 * radiusRatio;
+
+        this.particleSystem.sphereParams = {
+            radius: radius,
+            centerY: 0
+        };
+
         this.updateParticleBounds();
         this.particleSystem.createParticles();
         this.particleSystem.setTemperature(this.state.temperature);
@@ -581,6 +633,11 @@ export class AvogadroScene {
         const radius = 0.8 * radiusRatio;
 
         this.particleSystem.setBounds(radius, radius * 1.1, radius);
+
+        // Update sphere params for proper containment
+        if (this.particleSystem.sphereParams) {
+            this.particleSystem.sphereParams.radius = radius;
+        }
     }
 
     setMoles(moles) {
@@ -590,6 +647,9 @@ export class AvogadroScene {
 
         this.updateBalloonSize();
         this.updateParticleBounds();
+
+        // Reposition all particles to stay inside the new balloon bounds
+        this.particleSystem.repositionParticles();
 
         // Adjust particle count proportionally (more moles = more molecules)
         const targetCount = Math.round(50 * moles);

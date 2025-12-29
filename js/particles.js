@@ -52,6 +52,16 @@ export class ParticleSystem {
         // Position relative to center offset
         if (position) {
             mesh.position.copy(position);
+        } else if (this.sphereParams) {
+            // Position within spherical bounds
+            const r = this.sphereParams.radius * 0.8 * Math.cbrt(Math.random());
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            mesh.position.set(
+                this.centerOffset.x + r * Math.sin(phi) * Math.cos(theta),
+                this.centerOffset.y + (this.sphereParams.centerY || 0) + r * Math.cos(phi),
+                this.centerOffset.z + r * Math.sin(phi) * Math.sin(theta)
+            );
         } else {
             mesh.position.set(
                 this.centerOffset.x + (Math.random() - 0.5) * this.bounds.x * 1.6,
@@ -239,6 +249,41 @@ export class ParticleSystem {
         return collided;
     }
 
+    // Constrain particles to spherical bounds (for balloon shapes)
+    constrainToSphere(particle, sphereRadius, sphereCenterY = 0) {
+        const mesh = particle.mesh;
+        const velocity = particle.velocity;
+        const radius = particle.radius;
+        let collided = false;
+
+        // Calculate distance from sphere center
+        const dx = mesh.position.x - this.centerOffset.x;
+        const dy = mesh.position.y - (this.centerOffset.y + sphereCenterY);
+        const dz = mesh.position.z - this.centerOffset.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const maxDist = sphereRadius - radius;
+
+        if (dist > maxDist && dist > 0.001) {
+            // Push back to sphere surface
+            const scale = maxDist / dist;
+            mesh.position.x = this.centerOffset.x + dx * scale;
+            mesh.position.y = this.centerOffset.y + sphereCenterY + dy * scale;
+            mesh.position.z = this.centerOffset.z + dz * scale;
+
+            // Reflect velocity (normal to sphere surface)
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const nz = dz / dist;
+            const dot = velocity.x * nx + velocity.y * ny + velocity.z * nz;
+            velocity.x -= 2 * dot * nx;
+            velocity.y -= 2 * dot * ny;
+            velocity.z -= 2 * dot * nz;
+            collided = true;
+        }
+
+        return collided;
+    }
+
     update(deltaTime, useBoxBounds = true, cylinderParams = null) {
         const speedFactor = Math.sqrt(this.temperature / 273);
 
@@ -255,7 +300,14 @@ export class ParticleSystem {
 
             let collided = false;
 
-            if (cylinderParams) {
+            if (this.sphereParams) {
+                // Use spherical bounds (for balloon shapes)
+                collided = this.constrainToSphere(
+                    particle,
+                    this.sphereParams.radius,
+                    this.sphereParams.centerY || 0
+                );
+            } else if (cylinderParams) {
                 // Use cylindrical bounds
                 collided = this.constrainToCylinder(
                     particle,
@@ -390,11 +442,24 @@ export class ParticleSystem {
     // Reposition all particles within current bounds
     repositionParticles() {
         this.particles.forEach(particle => {
-            particle.mesh.position.set(
-                this.centerOffset.x + (Math.random() - 0.5) * this.bounds.x * 1.6,
-                this.centerOffset.y + (Math.random() - 0.5) * this.bounds.y * 1.6,
-                this.centerOffset.z + (Math.random() - 0.5) * this.bounds.z * 1.6
-            );
+            if (this.sphereParams) {
+                // Position within spherical bounds
+                const r = this.sphereParams.radius * 0.8 * Math.cbrt(Math.random()); // Uniform in sphere
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                particle.mesh.position.set(
+                    this.centerOffset.x + r * Math.sin(phi) * Math.cos(theta),
+                    this.centerOffset.y + (this.sphereParams.centerY || 0) + r * Math.cos(phi),
+                    this.centerOffset.z + r * Math.sin(phi) * Math.sin(theta)
+                );
+            } else {
+                // Box bounds (default)
+                particle.mesh.position.set(
+                    this.centerOffset.x + (Math.random() - 0.5) * this.bounds.x * 1.6,
+                    this.centerOffset.y + (Math.random() - 0.5) * this.bounds.y * 1.6,
+                    this.centerOffset.z + (Math.random() - 0.5) * this.bounds.z * 1.6
+                );
+            }
         });
     }
 

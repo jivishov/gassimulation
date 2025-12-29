@@ -67,25 +67,27 @@ export class CharlesScene {
         this.balloon.position.y = 3.5;
         this.group.add(this.balloon);
 
-        // Create teardrop-shaped balloon envelope using LatheGeometry for realistic shape
+        // Create roundish hot air balloon envelope - more spherical, no neck
+        // Real hot air balloons are roughly spherical/onion-shaped with a small opening at bottom
         const points = [];
-        const segments = 20;
+        const segments = 24;
         for (let i = 0; i <= segments; i++) {
             const t = i / segments;
-            // Teardrop profile: wider at top, tapers at bottom
             let radius, y;
-            if (t < 0.7) {
-                // Upper bulbous part
-                const angle = (t / 0.7) * Math.PI;
-                radius = Math.sin(angle) * this.baseRadius;
-                y = Math.cos(angle) * this.baseRadius * 1.2 + this.baseRadius * 0.3;
-            } else {
-                // Lower tapered neck
-                const neckT = (t - 0.7) / 0.3;
-                radius = (1 - neckT) * this.baseRadius * 0.5 + neckT * 0.5;
-                y = -this.baseRadius * 0.9 - neckT * 0.5;
+
+            // Create a smooth spherical profile with small opening at bottom
+            // Goes from top (t=0) to bottom opening (t=1)
+            const angle = t * Math.PI * 0.92; // Almost full half-sphere, slight flattening at bottom
+            radius = Math.sin(angle) * this.baseRadius;
+            y = Math.cos(angle) * this.baseRadius * 1.1; // Slightly taller than wide
+
+            // Ensure minimum radius at the bottom for the opening
+            if (t > 0.9) {
+                const openingT = (t - 0.9) / 0.1;
+                radius = Math.max(radius, 0.5 + (1 - openingT) * 0.3);
             }
-            points.push(new THREE.Vector2(radius, y));
+
+            points.push(new THREE.Vector2(Math.max(radius, 0.01), y));
         }
 
         // Create 16 gore panels (vertical sections) with alternating colors
@@ -96,10 +98,11 @@ export class CharlesScene {
             0x1d3557, 0xf1faee, 0xa8dadc, 0xf1faee
         ];
         const numGores = 16;
+        this.balloonGores = []; // Store references for transparency updates
 
         for (let g = 0; g < numGores; g++) {
             const goreGeometry = new THREE.LatheGeometry(
-                points, 4,
+                points, 6,
                 (g / numGores) * Math.PI * 2,
                 (1 / numGores) * Math.PI * 2
             );
@@ -107,14 +110,16 @@ export class CharlesScene {
             const goreMaterial = new THREE.MeshPhysicalMaterial({
                 color: goreColors[g],
                 transparent: true,
-                opacity: 0.88,
+                opacity: 0.55, // More transparent to see particles and flame
                 side: THREE.DoubleSide,
                 metalness: 0.0,
-                roughness: 0.5,
+                roughness: 0.6,
+                depthWrite: false // Better transparency rendering
             });
 
             const gore = new THREE.Mesh(goreGeometry, goreMaterial);
             this.balloon.add(gore);
+            this.balloonGores.push(gore);
         }
 
         // Vertical seam lines between gores
@@ -135,38 +140,30 @@ export class CharlesScene {
             this.balloon.add(seam);
         }
 
-        // Crown ring at top
-        const crownGeometry = new THREE.TorusGeometry(0.3, 0.04, 8, 24);
+        // Crown ring at top (parachute vent)
+        const crownGeometry = new THREE.TorusGeometry(0.25, 0.04, 8, 24);
         const crownMaterial = new THREE.MeshStandardMaterial({
             color: 0x8b4513,
             roughness: 0.7
         });
         const crown = new THREE.Mesh(crownGeometry, crownMaterial);
         crown.rotation.x = Math.PI / 2;
-        crown.position.y = this.baseRadius * 1.5;
+        crown.position.y = this.baseRadius * 1.1;
         this.balloon.add(crown);
 
-        // Balloon mouth opening at bottom
-        const openingGeometry = new THREE.TorusGeometry(0.5, 0.06, 8, 32);
+        // Balloon mouth opening ring at bottom
+        const openingGeometry = new THREE.TorusGeometry(0.55, 0.05, 8, 32);
         const openingMaterial = new THREE.MeshStandardMaterial({
             color: 0x8b4513,
             roughness: 0.8
         });
         const opening = new THREE.Mesh(openingGeometry, openingMaterial);
         opening.rotation.x = Math.PI / 2;
-        opening.position.y = -this.baseRadius * 0.9 - 0.5;
+        opening.position.y = -this.baseRadius * 0.85;
         this.balloon.add(opening);
 
-        // Throat/skirt around opening
-        const skirtGeometry = new THREE.CylinderGeometry(0.5, 0.65, 0.4, 24, 1, true);
-        const skirtMaterial = new THREE.MeshStandardMaterial({
-            color: 0xcc4444,
-            side: THREE.DoubleSide,
-            roughness: 0.8
-        });
-        const skirt = new THREE.Mesh(skirtGeometry, skirtMaterial);
-        skirt.position.y = -this.baseRadius * 0.9 - 0.7;
-        this.balloon.add(skirt);
+        // Store bottom Y for particle containment reference
+        this.balloonBottomY = -this.baseRadius * 0.85;
     }
 
     createBasket() {
@@ -382,13 +379,14 @@ export class CharlesScene {
         this.ropes = [];
         const corners = [[-0.55, 0.55], [0.55, 0.55], [-0.55, -0.55], [0.55, -0.55]];
 
-        // Balloon mouth position (relative to balloon at y=3.5)
-        const balloonMouthY = 3.5 + (-this.baseRadius * 0.9 - 0.5);
+        // Balloon mouth position - now uses the new spherical shape bottom
+        const balloonMouthY = 3.5 + (-this.baseRadius * 0.85);
 
         corners.forEach(([x, z]) => {
             // Create curved rope using CatmullRomCurve3
             const startPoint = new THREE.Vector3(x, 0, z); // Basket corner
-            const endPoint = new THREE.Vector3(x * 0.7, balloonMouthY, z * 0.7); // Balloon mouth
+            // Connect to the opening ring of the spherical balloon
+            const endPoint = new THREE.Vector3(x * 0.8, balloonMouthY, z * 0.8);
 
             // Create curve points with catenary-like sag
             const curvePoints = [];
@@ -398,7 +396,7 @@ export class CharlesScene {
                 const y = startPoint.y + t * (endPoint.y - startPoint.y);
 
                 // Catenary sag - more sag in the middle
-                const sag = Math.sin(t * Math.PI) * 0.15;
+                const sag = Math.sin(t * Math.PI) * 0.12;
 
                 // Interpolate x and z with slight inward curve
                 const xPos = startPoint.x + t * (endPoint.x - startPoint.x) - sag * Math.sign(x);
@@ -453,8 +451,15 @@ export class CharlesScene {
             showCollisions: true
         });
 
-        // Set center offset to balloon position
+        // Set center offset to balloon position (center of the spherical balloon)
         this.particleSystem.setCenterOffset(0, 3.5, 0);
+
+        // Use spherical bounds for the roundish balloon
+        this.particleSystem.sphereParams = {
+            radius: this.currentRadius * 0.85,
+            centerY: 0.1 // Slight offset to account for balloon shape
+        };
+
         this.updateParticleBounds();
         this.particleSystem.createParticles();
         this.particleSystem.setTemperature(this.state.temperature);
@@ -583,7 +588,13 @@ export class CharlesScene {
 
     updateParticleBounds() {
         const radius = this.currentRadius * 0.85;
-        this.particleSystem.setBounds(radius, radius * 1.1, radius);
+        // Use spherical bounds for the roundish balloon shape
+        this.particleSystem.setBounds(radius, radius, radius);
+
+        // Update sphere params for proper spherical containment
+        if (this.particleSystem.sphereParams) {
+            this.particleSystem.sphereParams.radius = radius;
+        }
     }
 
     setTemperature(temp) {

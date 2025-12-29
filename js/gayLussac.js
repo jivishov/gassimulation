@@ -197,21 +197,40 @@ export class GayLussacScene {
         cookerGroup.position.y = 0.35;
         this.group.add(cookerGroup);
 
-        const cookerMaterial = new THREE.MeshStandardMaterial({
+        // Transparent material for cooker body (to see particles inside)
+        const cookerMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xc0c0c0,
+            metalness: 0.4,
+            roughness: 0.2,
+            transparent: true,
+            opacity: 0.55,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+
+        // Solid material for structural parts
+        const solidMaterial = new THREE.MeshStandardMaterial({
             color: 0xc0c0c0,
             metalness: 0.85,
             roughness: 0.15
         });
 
-        // Cooker body (pot)
-        const bodyGeometry = new THREE.CylinderGeometry(1.3, 1.15, 1.5, 32);
+        // Cooker body (pot) - transparent to see particles
+        const bodyGeometry = new THREE.CylinderGeometry(1.3, 1.15, 1.5, 32, 1, true); // Open-ended
         const body = new THREE.Mesh(bodyGeometry, cookerMaterial);
         body.position.y = 0.75;
         cookerGroup.add(body);
 
-        // Body rim at top
-        const bodyRimGeometry = new THREE.TorusGeometry(1.3, 0.06, 8, 32);
-        const bodyRim = new THREE.Mesh(bodyRimGeometry, cookerMaterial);
+        // Solid bottom of the cooker
+        const bottomGeometry = new THREE.CircleGeometry(1.15, 32);
+        const bottom = new THREE.Mesh(bottomGeometry, solidMaterial);
+        bottom.rotation.x = -Math.PI / 2;
+        bottom.position.y = 0;
+        cookerGroup.add(bottom);
+
+        // Body rim at top (solid ring)
+        const bodyRimGeometry = new THREE.TorusGeometry(1.3, 0.08, 8, 32);
+        const bodyRim = new THREE.Mesh(bodyRimGeometry, solidMaterial);
         bodyRim.rotation.x = Math.PI / 2;
         bodyRim.position.y = 1.5;
         cookerGroup.add(bodyRim);
@@ -235,53 +254,70 @@ export class GayLussacScene {
         handle2.position.set(-1.5, 0.9, 0);
         cookerGroup.add(handle2);
 
-        // Create lid as separate group for animation
+        // Create lid as separate group for vibration animation
         this.lidGroup = new THREE.Group();
         this.lidGroup.position.y = 1.5;
         cookerGroup.add(this.lidGroup);
 
-        // Lid dome
-        const lidGeometry = new THREE.SphereGeometry(1.28, 32, 16, 0, Math.PI * 2, 0, Math.PI / 3);
-        const lid = new THREE.Mesh(lidGeometry, cookerMaterial);
+        // Lid transparent material
+        const lidMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xc0c0c0,
+            metalness: 0.4,
+            roughness: 0.2,
+            transparent: true,
+            opacity: 0.5,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+
+        // Lid dome - flat-topped dome that sits closed on the body
+        const lidGeometry = new THREE.SphereGeometry(1.28, 32, 16, 0, Math.PI * 2, 0, Math.PI / 4);
+        const lid = new THREE.Mesh(lidGeometry, lidMaterial);
+        lid.position.y = -0.05; // Sit right on the rim
         this.lidGroup.add(lid);
         this.lid = lid;
 
-        // Lid rim seal
-        const lidRimGeometry = new THREE.TorusGeometry(1.25, 0.04, 8, 32);
+        // Lid sealing ring (shows the lid is properly closed)
+        const sealGeometry = new THREE.TorusGeometry(1.25, 0.06, 8, 32);
         const sealMaterial = new THREE.MeshStandardMaterial({
-            color: 0x333333,
+            color: 0x222222,
             roughness: 0.9
         });
-        const lidRim = new THREE.Mesh(lidRimGeometry, sealMaterial);
-        lidRim.rotation.x = Math.PI / 2;
-        this.lidGroup.add(lidRim);
+        const seal = new THREE.Mesh(sealGeometry, sealMaterial);
+        seal.rotation.x = Math.PI / 2;
+        seal.position.y = -0.02;
+        this.lidGroup.add(seal);
 
-        // Lid handle (top knob)
-        const lidKnobGeometry = new THREE.CylinderGeometry(0.12, 0.15, 0.18, 16);
+        // Flat top plate on lid dome (solid - for mounting gauge)
+        const topPlateGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.06, 24);
+        const topPlate = new THREE.Mesh(topPlateGeometry, solidMaterial);
+        topPlate.position.y = 0.42;
+        this.lidGroup.add(topPlate);
+
+        // Lid handle (on top of the dome)
+        const lidKnobBaseGeometry = new THREE.CylinderGeometry(0.15, 0.18, 0.1, 16);
+        const lidKnobBase = new THREE.Mesh(lidKnobBaseGeometry, solidMaterial);
+        lidKnobBase.position.y = 0.5;
+        this.lidGroup.add(lidKnobBase);
+
+        const lidKnobGeometry = new THREE.CylinderGeometry(0.1, 0.12, 0.12, 16);
         const lidKnob = new THREE.Mesh(lidKnobGeometry, handleMaterial);
-        lidKnob.position.y = 0.45;
+        lidKnob.position.y = 0.6;
         this.lidGroup.add(lidKnob);
 
-        // Lid handle grip
-        const gripGeometry = new THREE.TorusGeometry(0.08, 0.025, 8, 16);
-        const grip = new THREE.Mesh(gripGeometry, handleMaterial);
-        grip.rotation.x = Math.PI / 2;
-        grip.position.y = 0.55;
-        this.lidGroup.add(grip);
-
-        // Safety lock clips around lid edge
+        // Safety lock clips around lid edge (show lid is sealed)
         for (let i = 0; i < 6; i++) {
             const angle = (i / 6) * Math.PI * 2;
-            const clipGeometry = new THREE.BoxGeometry(0.12, 0.1, 0.04);
+            const clipGeometry = new THREE.BoxGeometry(0.15, 0.12, 0.05);
             const clipMaterial = new THREE.MeshStandardMaterial({
-                color: 0x888888,
+                color: 0x666666,
                 metalness: 0.8
             });
             const clip = new THREE.Mesh(clipGeometry, clipMaterial);
             clip.position.set(
-                Math.cos(angle) * 1.22,
+                Math.cos(angle) * 1.28,
                 0,
-                Math.sin(angle) * 1.22
+                Math.sin(angle) * 1.28
             );
             clip.lookAt(0, 0, 0);
             this.lidGroup.add(clip);
@@ -292,9 +328,9 @@ export class GayLussacScene {
 
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
-        // Mount gauge on the lid - positioned at front edge
-        gaugeGroup.position.set(0.9, 0.25, 0.6);
-        gaugeGroup.rotation.set(-0.4, -0.3, 0);
+        // Mount gauge on top of the lid - clearly visible position
+        gaugeGroup.position.set(0.25, 0.7, 0.25);
+        gaugeGroup.rotation.set(-0.3, -0.4, 0); // Angled slightly toward camera
         this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
         // Gauge housing (chrome finish)
@@ -399,13 +435,13 @@ export class GayLussacScene {
         glass.position.z = 0.07;
         gaugeGroup.add(glass);
 
-        // Mounting stem connecting to lid
+        // Mounting stem connecting gauge to lid top plate
         const stemCurve = new THREE.CatmullRomCurve3([
             new THREE.Vector3(0, 0, -0.06),
-            new THREE.Vector3(-0.15, -0.1, -0.15),
-            new THREE.Vector3(-0.4, -0.2, -0.25)
+            new THREE.Vector3(-0.05, -0.15, -0.1),
+            new THREE.Vector3(-0.1, -0.25, -0.15)
         ]);
-        const stemGeometry = new THREE.TubeGeometry(stemCurve, 12, 0.04, 8, false);
+        const stemGeometry = new THREE.TubeGeometry(stemCurve, 12, 0.035, 8, false);
         const stemMaterial = new THREE.MeshStandardMaterial({
             color: 0x777777,
             metalness: 0.85,
@@ -420,8 +456,8 @@ export class GayLussacScene {
 
     createSteamValve() {
         const valveGroup = new THREE.Group();
-        // Position on the lid
-        valveGroup.position.set(-0.5, 0.35, -0.5);
+        // Position on top of the lid, opposite side from gauge
+        valveGroup.position.set(-0.25, 0.45, -0.25);
         this.lidGroup.add(valveGroup); // Attach to lid
 
         // Valve body base
