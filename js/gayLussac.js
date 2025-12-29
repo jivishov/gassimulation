@@ -44,6 +44,7 @@ export class GayLussacScene {
         this.flameTime = 0;
         this.heatLevel = 0.5;
         this.steamTime = 0;
+        this.lidVibration = 0;
 
         this.init();
     }
@@ -122,43 +123,72 @@ export class GayLussacScene {
 
     createBurnerFlames(parent) {
         this.burnerFlames = [];
-        const flameCount = 16;
+        const flameCount = 24; // More flames for fuller ring
 
         for (let i = 0; i < flameCount; i++) {
             const angle = (i / flameCount) * Math.PI * 2;
-            const radius = 0.6;
+            const radius = 0.55;
 
             const flameGroup = new THREE.Group();
             flameGroup.position.set(
                 Math.cos(angle) * radius,
-                0.2,
+                0.22,
                 Math.sin(angle) * radius
             );
 
-            // Blue flame (gas stove)
-            const innerGeometry = new THREE.ConeGeometry(0.04, 0.2, 6);
+            // Core flame (white-blue hottest part)
+            const coreGeometry = new THREE.ConeGeometry(0.015, 0.12, 6);
+            const coreMaterial = new THREE.MeshBasicMaterial({
+                color: 0xaaddff,
+                transparent: true,
+                opacity: 0.95
+            });
+            const core = new THREE.Mesh(coreGeometry, coreMaterial);
+            core.position.y = 0.06;
+            flameGroup.add(core);
+
+            // Inner flame (bright blue)
+            const innerGeometry = new THREE.ConeGeometry(0.03, 0.18, 6);
             const innerMaterial = new THREE.MeshBasicMaterial({
                 color: 0x4488ff,
                 transparent: true,
-                opacity: 0.9
+                opacity: 0.85
             });
             const inner = new THREE.Mesh(innerGeometry, innerMaterial);
-            inner.position.y = 0.1;
+            inner.position.y = 0.08;
             flameGroup.add(inner);
 
-            // Outer flame
-            const outerGeometry = new THREE.ConeGeometry(0.06, 0.3, 6);
+            // Outer flame (darker blue)
+            const outerGeometry = new THREE.ConeGeometry(0.045, 0.25, 6);
             const outerMaterial = new THREE.MeshBasicMaterial({
-                color: 0x2244aa,
+                color: 0x2255cc,
                 transparent: true,
-                opacity: 0.5
+                opacity: 0.6
             });
             const outer = new THREE.Mesh(outerGeometry, outerMaterial);
-            outer.position.y = 0.12;
+            outer.position.y = 0.1;
             flameGroup.add(outer);
 
+            // Flame tip (faint blue)
+            const tipGeometry = new THREE.ConeGeometry(0.025, 0.1, 4);
+            const tipMaterial = new THREE.MeshBasicMaterial({
+                color: 0x1133aa,
+                transparent: true,
+                opacity: 0.3
+            });
+            const tip = new THREE.Mesh(tipGeometry, tipMaterial);
+            tip.position.y = 0.18;
+            flameGroup.add(tip);
+
             parent.add(flameGroup);
-            this.burnerFlames.push(flameGroup);
+            this.burnerFlames.push({
+                group: flameGroup,
+                core: core,
+                inner: inner,
+                outer: outer,
+                tip: tip,
+                phase: i * 0.3
+            });
         }
     }
 
@@ -167,67 +197,94 @@ export class GayLussacScene {
         cookerGroup.position.y = 0.35;
         this.group.add(cookerGroup);
 
-        // Cooker body (pot)
-        const bodyGeometry = new THREE.CylinderGeometry(1.3, 1.2, 1.5, 32);
         const cookerMaterial = new THREE.MeshStandardMaterial({
-            color: 0xaaaaaa,
-            metalness: 0.9,
-            roughness: 0.2
+            color: 0xc0c0c0,
+            metalness: 0.85,
+            roughness: 0.15
         });
+
+        // Cooker body (pot)
+        const bodyGeometry = new THREE.CylinderGeometry(1.3, 1.15, 1.5, 32);
         const body = new THREE.Mesh(bodyGeometry, cookerMaterial);
         body.position.y = 0.75;
         cookerGroup.add(body);
 
-        // Cooker lid (dome shape)
-        const lidGeometry = new THREE.SphereGeometry(1.3, 32, 16, 0, Math.PI * 2, 0, Math.PI / 3);
-        const lid = new THREE.Mesh(lidGeometry, cookerMaterial);
-        lid.position.y = 1.5;
-        cookerGroup.add(lid);
-        this.lid = lid;
+        // Body rim at top
+        const bodyRimGeometry = new THREE.TorusGeometry(1.3, 0.06, 8, 32);
+        const bodyRim = new THREE.Mesh(bodyRimGeometry, cookerMaterial);
+        bodyRim.rotation.x = Math.PI / 2;
+        bodyRim.position.y = 1.5;
+        cookerGroup.add(bodyRim);
 
-        // Lid rim
-        const rimGeometry = new THREE.TorusGeometry(1.3, 0.05, 8, 32);
-        const rim = new THREE.Mesh(rimGeometry, cookerMaterial);
-        rim.rotation.x = Math.PI / 2;
-        rim.position.y = 1.5;
-        cookerGroup.add(rim);
-
-        // Handles
-        const handleGeometry = new THREE.TorusGeometry(0.2, 0.05, 8, 16, Math.PI);
+        // Side handles
         const handleMaterial = new THREE.MeshStandardMaterial({
-            color: 0x222222,
-            roughness: 0.8
+            color: 0x1a1a1a,
+            roughness: 0.7
         });
+        const handleGeometry = new THREE.TorusGeometry(0.2, 0.05, 8, 16, Math.PI);
 
         const handle1 = new THREE.Mesh(handleGeometry, handleMaterial);
         handle1.rotation.y = Math.PI / 2;
-        handle1.position.set(1.4, 1, 0);
+        handle1.rotation.z = Math.PI / 2;
+        handle1.position.set(1.5, 0.9, 0);
         cookerGroup.add(handle1);
 
         const handle2 = new THREE.Mesh(handleGeometry, handleMaterial);
         handle2.rotation.y = -Math.PI / 2;
-        handle2.position.set(-1.4, 1, 0);
+        handle2.rotation.z = Math.PI / 2;
+        handle2.position.set(-1.5, 0.9, 0);
         cookerGroup.add(handle2);
 
-        // Lid handle
-        const lidHandleGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.2, 16);
-        const lidHandle = new THREE.Mesh(lidHandleGeometry, handleMaterial);
-        lidHandle.position.y = 1.9;
-        cookerGroup.add(lidHandle);
+        // Create lid as separate group for animation
+        this.lidGroup = new THREE.Group();
+        this.lidGroup.position.y = 1.5;
+        cookerGroup.add(this.lidGroup);
 
-        // Safety lock indicators
-        for (let i = 0; i < 4; i++) {
-            const angle = (i / 4) * Math.PI * 2;
-            const lockGeometry = new THREE.BoxGeometry(0.1, 0.15, 0.05);
-            const lockMaterial = new THREE.MeshBasicMaterial({ color: 0x666666 });
-            const lock = new THREE.Mesh(lockGeometry, lockMaterial);
-            lock.position.set(
-                Math.cos(angle) * 1.25,
-                1.5,
-                Math.sin(angle) * 1.25
+        // Lid dome
+        const lidGeometry = new THREE.SphereGeometry(1.28, 32, 16, 0, Math.PI * 2, 0, Math.PI / 3);
+        const lid = new THREE.Mesh(lidGeometry, cookerMaterial);
+        this.lidGroup.add(lid);
+        this.lid = lid;
+
+        // Lid rim seal
+        const lidRimGeometry = new THREE.TorusGeometry(1.25, 0.04, 8, 32);
+        const sealMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 0.9
+        });
+        const lidRim = new THREE.Mesh(lidRimGeometry, sealMaterial);
+        lidRim.rotation.x = Math.PI / 2;
+        this.lidGroup.add(lidRim);
+
+        // Lid handle (top knob)
+        const lidKnobGeometry = new THREE.CylinderGeometry(0.12, 0.15, 0.18, 16);
+        const lidKnob = new THREE.Mesh(lidKnobGeometry, handleMaterial);
+        lidKnob.position.y = 0.45;
+        this.lidGroup.add(lidKnob);
+
+        // Lid handle grip
+        const gripGeometry = new THREE.TorusGeometry(0.08, 0.025, 8, 16);
+        const grip = new THREE.Mesh(gripGeometry, handleMaterial);
+        grip.rotation.x = Math.PI / 2;
+        grip.position.y = 0.55;
+        this.lidGroup.add(grip);
+
+        // Safety lock clips around lid edge
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const clipGeometry = new THREE.BoxGeometry(0.12, 0.1, 0.04);
+            const clipMaterial = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                metalness: 0.8
+            });
+            const clip = new THREE.Mesh(clipGeometry, clipMaterial);
+            clip.position.set(
+                Math.cos(angle) * 1.22,
+                0,
+                Math.sin(angle) * 1.22
             );
-            lock.lookAt(0, 1.5, 0);
-            cookerGroup.add(lock);
+            clip.lookAt(0, 0, 0);
+            this.lidGroup.add(clip);
         }
 
         this.cooker = cookerGroup;
@@ -235,97 +292,127 @@ export class GayLussacScene {
 
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
-        gaugeGroup.position.set(0, 2.3, 0.8);
-        gaugeGroup.rotation.x = -0.3;
-        this.group.add(gaugeGroup);
+        // Mount gauge on the lid - positioned at front edge
+        gaugeGroup.position.set(0.9, 0.25, 0.6);
+        gaugeGroup.rotation.set(-0.4, -0.3, 0);
+        this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
-        // Gauge housing
-        const housingGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.15, 32);
+        // Gauge housing (chrome finish)
+        const housingGeometry = new THREE.CylinderGeometry(0.28, 0.28, 0.12, 32);
         const housingMaterial = new THREE.MeshStandardMaterial({
-            color: 0x333333,
-            metalness: 0.8
+            color: 0x888888,
+            metalness: 0.9,
+            roughness: 0.15
         });
         const housing = new THREE.Mesh(housingGeometry, housingMaterial);
         housing.rotation.x = Math.PI / 2;
         gaugeGroup.add(housing);
 
-        // Gauge face
-        const faceGeometry = new THREE.CircleGeometry(0.32, 32);
-        const faceMaterial = new THREE.MeshBasicMaterial({ color: 0xf5f5dc });
+        // Chrome bezel ring
+        const bezelGeometry = new THREE.TorusGeometry(0.28, 0.02, 8, 32);
+        const bezelMaterial = new THREE.MeshStandardMaterial({
+            color: 0xcccccc,
+            metalness: 0.95,
+            roughness: 0.1
+        });
+        const bezel = new THREE.Mesh(bezelGeometry, bezelMaterial);
+        bezel.position.z = 0.06;
+        gaugeGroup.add(bezel);
+
+        // Gauge face (off-white dial)
+        const faceGeometry = new THREE.CircleGeometry(0.26, 32);
+        const faceMaterial = new THREE.MeshBasicMaterial({ color: 0xf8f8f0 });
         const face = new THREE.Mesh(faceGeometry, faceMaterial);
-        face.position.z = 0.08;
+        face.position.z = 0.061;
         gaugeGroup.add(face);
 
-        // Pressure zones arc
-        const lowZone = new THREE.RingGeometry(0.2, 0.28, 16, 1, -Math.PI * 0.7, Math.PI * 0.4);
-        const lowMaterial = new THREE.MeshBasicMaterial({ color: 0x22aa22, side: THREE.DoubleSide });
+        // Pressure zones arc (cleaner design)
+        const lowZone = new THREE.RingGeometry(0.16, 0.23, 24, 1, -Math.PI * 0.7, Math.PI * 0.45);
+        const lowMaterial = new THREE.MeshBasicMaterial({ color: 0x44bb44, side: THREE.DoubleSide });
         const low = new THREE.Mesh(lowZone, lowMaterial);
-        low.position.z = 0.081;
+        low.position.z = 0.062;
         gaugeGroup.add(low);
 
-        const medZone = new THREE.RingGeometry(0.2, 0.28, 16, 1, -Math.PI * 0.3, Math.PI * 0.4);
-        const medMaterial = new THREE.MeshBasicMaterial({ color: 0xaaaa22, side: THREE.DoubleSide });
+        const medZone = new THREE.RingGeometry(0.16, 0.23, 16, 1, -Math.PI * 0.25, Math.PI * 0.35);
+        const medMaterial = new THREE.MeshBasicMaterial({ color: 0xddcc22, side: THREE.DoubleSide });
         const med = new THREE.Mesh(medZone, medMaterial);
-        med.position.z = 0.081;
+        med.position.z = 0.062;
         gaugeGroup.add(med);
 
-        const highZone = new THREE.RingGeometry(0.2, 0.28, 16, 1, Math.PI * 0.1, Math.PI * 0.5);
-        const highMaterial = new THREE.MeshBasicMaterial({ color: 0xaa2222, side: THREE.DoubleSide });
+        const highZone = new THREE.RingGeometry(0.16, 0.23, 16, 1, Math.PI * 0.1, Math.PI * 0.45);
+        const highMaterial = new THREE.MeshBasicMaterial({ color: 0xdd3333, side: THREE.DoubleSide });
         const high = new THREE.Mesh(highZone, highMaterial);
-        high.position.z = 0.081;
+        high.position.z = 0.062;
         gaugeGroup.add(high);
 
-        // Scale markings
-        for (let i = 0; i <= 5; i++) {
-            const angle = -Math.PI * 0.7 + (i / 5) * Math.PI * 1.2;
-            const markGeometry = new THREE.BoxGeometry(0.08, 0.02, 0.01);
-            const markMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        // Scale markings (major and minor)
+        for (let i = 0; i <= 10; i++) {
+            const angle = -Math.PI * 0.7 + (i / 10) * Math.PI * 1.25;
+            const isMajor = i % 2 === 0;
+            const markLength = isMajor ? 0.06 : 0.04;
+            const markWidth = isMajor ? 0.015 : 0.01;
+            const markGeometry = new THREE.BoxGeometry(markLength, markWidth, 0.005);
+            const markMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
             const mark = new THREE.Mesh(markGeometry, markMaterial);
+            const radius = 0.2;
             mark.position.set(
-                Math.cos(angle) * 0.25,
-                Math.sin(angle) * 0.25,
-                0.082
+                Math.cos(angle) * radius,
+                Math.sin(angle) * radius,
+                0.063
             );
             mark.rotation.z = angle;
             gaugeGroup.add(mark);
         }
 
-        // Needle
-        const needleGeometry = new THREE.BoxGeometry(0.22, 0.02, 0.01);
-        const needleMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        // Needle (red, tapered)
+        const needleShape = new THREE.Shape();
+        needleShape.moveTo(0, -0.008);
+        needleShape.lineTo(0.18, -0.003);
+        needleShape.lineTo(0.18, 0.003);
+        needleShape.lineTo(0, 0.008);
+        needleShape.lineTo(-0.03, 0);
+        needleShape.closePath();
+
+        const needleGeometry = new THREE.ShapeGeometry(needleShape);
+        const needleMaterial = new THREE.MeshBasicMaterial({ color: 0xdd0000 });
         this.pressureNeedle = new THREE.Mesh(needleGeometry, needleMaterial);
-        this.pressureNeedle.geometry.translate(0.1, 0, 0);
-        this.pressureNeedle.position.z = 0.085;
+        this.pressureNeedle.position.z = 0.065;
         gaugeGroup.add(this.pressureNeedle);
 
-        // Center pivot
-        const pivotGeometry = new THREE.CircleGeometry(0.04, 16);
-        const pivotMaterial = new THREE.MeshBasicMaterial({ color: 0xcc0000 });
+        // Center pivot cap
+        const pivotGeometry = new THREE.CircleGeometry(0.025, 16);
+        const pivotMaterial = new THREE.MeshBasicMaterial({ color: 0xbb0000 });
         const pivot = new THREE.Mesh(pivotGeometry, pivotMaterial);
-        pivot.position.z = 0.086;
+        pivot.position.z = 0.066;
         gaugeGroup.add(pivot);
 
-        // "PSI" label
-        const psiGeometry = new THREE.PlaneGeometry(0.15, 0.06);
-        const psiMaterial = new THREE.MeshBasicMaterial({
-            color: 0x000000,
+        // Glass cover
+        const glassGeometry = new THREE.CircleGeometry(0.26, 32);
+        const glassMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.15,
+            metalness: 0,
+            roughness: 0
         });
-        const psi = new THREE.Mesh(psiGeometry, psiMaterial);
-        psi.position.set(0, -0.12, 0.083);
-        gaugeGroup.add(psi);
+        const glass = new THREE.Mesh(glassGeometry, glassMaterial);
+        glass.position.z = 0.07;
+        gaugeGroup.add(glass);
 
-        // Mounting pipe
-        const pipeGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8);
-        const pipeMaterial = new THREE.MeshStandardMaterial({
-            color: 0x666666,
-            metalness: 0.8
+        // Mounting stem connecting to lid
+        const stemCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, 0, -0.06),
+            new THREE.Vector3(-0.15, -0.1, -0.15),
+            new THREE.Vector3(-0.4, -0.2, -0.25)
+        ]);
+        const stemGeometry = new THREE.TubeGeometry(stemCurve, 12, 0.04, 8, false);
+        const stemMaterial = new THREE.MeshStandardMaterial({
+            color: 0x777777,
+            metalness: 0.85,
+            roughness: 0.2
         });
-        const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
-        pipe.position.set(0, -0.2, -0.15);
-        pipe.rotation.x = Math.PI / 4;
-        gaugeGroup.add(pipe);
+        const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+        gaugeGroup.add(stem);
 
         this.pressureGauge = gaugeGroup;
         this.updatePressureGauge();
@@ -333,28 +420,43 @@ export class GayLussacScene {
 
     createSteamValve() {
         const valveGroup = new THREE.Group();
-        valveGroup.position.set(-0.5, 2.2, -0.3);
-        this.group.add(valveGroup);
+        // Position on the lid
+        valveGroup.position.set(-0.5, 0.35, -0.5);
+        this.lidGroup.add(valveGroup); // Attach to lid
 
-        // Valve body
-        const valveGeometry = new THREE.CylinderGeometry(0.08, 0.1, 0.2, 8);
+        // Valve body base
+        const baseGeometry = new THREE.CylinderGeometry(0.1, 0.12, 0.1, 12);
         const valveMaterial = new THREE.MeshStandardMaterial({
-            color: 0x888888,
-            metalness: 0.9
+            color: 0x777777,
+            metalness: 0.9,
+            roughness: 0.15
         });
-        const valve = new THREE.Mesh(valveGeometry, valveMaterial);
-        valveGroup.add(valve);
+        const base = new THREE.Mesh(baseGeometry, valveMaterial);
+        valveGroup.add(base);
 
-        // Valve cap (jiggles when pressure is high)
-        const capGeometry = new THREE.CylinderGeometry(0.06, 0.08, 0.1, 8);
+        // Valve stem
+        const stemGeometry = new THREE.CylinderGeometry(0.06, 0.07, 0.15, 8);
+        const stem = new THREE.Mesh(stemGeometry, valveMaterial);
+        stem.position.y = 0.12;
+        valveGroup.add(stem);
+
+        // Valve weight/cap (jiggles when pressure is high)
+        const capGeometry = new THREE.CylinderGeometry(0.08, 0.1, 0.12, 12);
         const capMaterial = new THREE.MeshStandardMaterial({
-            color: 0x444444,
-            metalness: 0.9
+            color: 0x333333,
+            metalness: 0.8,
+            roughness: 0.3
         });
         const cap = new THREE.Mesh(capGeometry, capMaterial);
-        cap.position.y = 0.15;
+        cap.position.y = 0.25;
         valveGroup.add(cap);
         this.valveCap = cap;
+
+        // Top knob on cap
+        const knobGeometry = new THREE.SphereGeometry(0.05, 12, 8);
+        const knob = new THREE.Mesh(knobGeometry, capMaterial);
+        knob.position.y = 0.35;
+        valveGroup.add(knob);
 
         this.steamValve = valveGroup;
     }
@@ -432,23 +534,67 @@ export class GayLussacScene {
     }
 
     updateFlames() {
-        this.flameTime += 0.15;
+        this.flameTime += 0.1;
 
-        this.burnerFlames.forEach((flame, i) => {
-            const flicker = 0.7 + Math.sin(this.flameTime + i * 0.5) * 0.3;
-            const scale = this.heatLevel * flicker;
-            flame.scale.set(scale, scale * 1.2, scale);
-            flame.visible = this.heatLevel > 0.05;
+        this.burnerFlames.forEach((flame) => {
+            const t = this.flameTime + flame.phase;
+
+            // Visibility based on heat level
+            flame.group.visible = this.heatLevel > 0.05;
+
+            if (!flame.group.visible) return;
+
+            const baseScale = this.heatLevel;
+
+            // Animate each flame layer with different frequencies for realistic flicker
+            const coreFlicker = 0.9 + Math.sin(t * 12) * 0.1;
+            flame.core.scale.set(baseScale * coreFlicker, baseScale * (1 + Math.sin(t * 10) * 0.1), baseScale * coreFlicker);
+
+            const innerFlicker = 0.85 + Math.sin(t * 8 + 0.3) * 0.15;
+            flame.inner.scale.set(baseScale * innerFlicker, baseScale * (1.1 + Math.sin(t * 7) * 0.15), baseScale * innerFlicker);
+
+            const outerFlicker = 0.8 + Math.sin(t * 6 + 0.6) * 0.2;
+            flame.outer.scale.set(baseScale * outerFlicker, baseScale * (1.15 + Math.sin(t * 5) * 0.2), baseScale * outerFlicker);
+
+            const tipFlicker = 0.7 + Math.sin(t * 4 + 0.9) * 0.3;
+            flame.tip.scale.set(baseScale * tipFlicker, baseScale * (1 + Math.sin(t * 3) * 0.3), baseScale * tipFlicker);
+            flame.tip.position.y = 0.18 + Math.sin(t * 5) * 0.02;
         });
 
-        // Update burner light
+        // Update burner light with flicker
         if (this.burnerLight) {
-            this.burnerLight.intensity = this.heatLevel * 2;
+            this.burnerLight.intensity = this.heatLevel * 2 * (0.9 + Math.sin(this.flameTime * 8) * 0.1);
         }
 
         // Update knob indicator rotation
         if (this.knobIndicator) {
             this.knobIndicator.rotation.z = this.heatLevel * Math.PI;
+        }
+
+        // Update lid vibration at high pressure
+        this.updateLidVibration();
+    }
+
+    updateLidVibration() {
+        if (!this.lidGroup) return;
+
+        // Lid vibrates when pressure is high (above 1.5 atm)
+        if (this.state.pressure > 1.4) {
+            const pressureExcess = (this.state.pressure - 1.4) / 0.6; // 0 to 1 scale
+            const vibrationIntensity = pressureExcess * 0.003;
+
+            // Slow, subtle vibration
+            this.lidVibration += 0.08;
+            const vibX = Math.sin(this.lidVibration * 3) * vibrationIntensity;
+            const vibZ = Math.cos(this.lidVibration * 2.5) * vibrationIntensity;
+            const vibY = Math.sin(this.lidVibration * 4) * vibrationIntensity * 0.5;
+
+            this.lidGroup.position.x = vibX;
+            this.lidGroup.position.z = vibZ;
+            this.lidGroup.position.y = 1.5 + vibY;
+        } else {
+            // Reset to normal position
+            this.lidGroup.position.set(0, 1.5, 0);
         }
     }
 
@@ -467,11 +613,26 @@ export class GayLussacScene {
     }
 
     updateSteamValve() {
-        // Valve jiggles when pressure is high
-        if (this.valveCap && this.state.pressure > 1.5) {
-            const jiggle = Math.sin(this.flameTime * 10) * 0.02 * (this.state.pressure - 1.5);
-            this.valveCap.position.y = 0.15 + jiggle;
-            this.valveCap.rotation.y = Math.sin(this.flameTime * 15) * 0.1;
+        if (!this.valveCap) return;
+
+        // Valve jiggles when pressure is high (above 1.5 atm)
+        if (this.state.pressure > 1.5) {
+            const pressureExcess = (this.state.pressure - 1.5) / 0.5; // 0 to 1 scale
+
+            // Slower, more deliberate jiggle (like a real pressure cooker valve)
+            const jiggleFreq = 2 + pressureExcess * 2; // 2-4 Hz
+            const jiggleAmp = 0.015 + pressureExcess * 0.02;
+
+            const jiggle = Math.sin(this.flameTime * jiggleFreq) * jiggleAmp;
+            this.valveCap.position.y = 0.25 + Math.max(0, jiggle); // Only lift, don't push down
+            this.valveCap.rotation.y = Math.sin(this.flameTime * jiggleFreq * 0.7) * 0.15 * pressureExcess;
+
+            // Slight tilt during venting
+            this.valveCap.rotation.x = Math.sin(this.flameTime * jiggleFreq * 0.5) * 0.05 * pressureExcess;
+        } else {
+            // Reset to rest position
+            this.valveCap.position.y = 0.25;
+            this.valveCap.rotation.set(0, 0, 0);
         }
     }
 

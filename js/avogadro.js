@@ -187,51 +187,65 @@ export class AvogadroScene {
     }
 
     createHose() {
-        const hoseGroup = new THREE.Group();
-        this.group.add(hoseGroup);
+        this.hoseGroup = new THREE.Group();
+        this.group.add(this.hoseGroup);
 
-        // Create curved hose using tube geometry
-        const curve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(-2.1, 3.1, 0),
-            new THREE.Vector3(-1.5, 2.5, 0.5),
-            new THREE.Vector3(-0.5, 2.2, 0.3),
-            new THREE.Vector3(0.5, 2.3, 0),
-            new THREE.Vector3(1.5, 2.5, -0.3),
-            new THREE.Vector3(2, 2.5, 0)
+        // Hose connects from regulator to balloon's knot opening
+        // Regulator is at (-2.1, 3.1, 0)
+        // Balloon is at (2.5, 3, 0), knot is at y = -1 relative, so absolute (2.5, 2, 0)
+        const hoseStartY = 3.1;
+        const knotPosition = new THREE.Vector3(2.5, 2, 0);
+
+        // Create curved hose path that drapes naturally then curves up to balloon knot
+        const hoseCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-2.1, hoseStartY, 0.1),          // From regulator
+            new THREE.Vector3(-1.5, 2.2, 0.3),                  // Drops down
+            new THREE.Vector3(-0.5, 1.5, 0.4),                  // Sags in middle
+            new THREE.Vector3(0.5, 1.3, 0.3),                   // Low point
+            new THREE.Vector3(1.5, 1.5, 0.15),                   // Rises toward balloon
+            new THREE.Vector3(2.2, 1.8, 0.05),                   // Approaching knot
+            new THREE.Vector3(2.5, 2.0, 0)                       // At balloon knot
         ]);
 
-        const tubeGeometry = new THREE.TubeGeometry(curve, 20, 0.08, 8, false);
+        const tubeGeometry = new THREE.TubeGeometry(hoseCurve, 32, 0.06, 8, false);
         const hoseMaterial = new THREE.MeshStandardMaterial({
-            color: 0x222222,
-            roughness: 0.8
+            color: 0x1a1a1a,
+            roughness: 0.7
         });
         const hose = new THREE.Mesh(tubeGeometry, hoseMaterial);
-        hoseGroup.add(hose);
+        this.hoseGroup.add(hose);
 
-        // Nozzle at the end
+        // Create nozzle/adapter at the balloon end
         const nozzleGroup = new THREE.Group();
-        nozzleGroup.position.set(2, 2.5, 0);
-        nozzleGroup.rotation.z = -Math.PI / 4;
+        nozzleGroup.position.copy(knotPosition);
 
-        const nozzleGeometry = new THREE.CylinderGeometry(0.05, 0.1, 0.3, 12);
+        // Nozzle adapter connecting to balloon knot
+        const adapterGeometry = new THREE.CylinderGeometry(0.08, 0.06, 0.15, 12);
         const nozzleMaterial = new THREE.MeshStandardMaterial({
-            color: 0x666666,
-            metalness: 0.8
+            color: 0x555555,
+            metalness: 0.7,
+            roughness: 0.3
         });
-        const nozzle = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
-        nozzleGroup.add(nozzle);
+        const adapter = new THREE.Mesh(adapterGeometry, nozzleMaterial);
+        nozzleGroup.add(adapter);
 
-        // Nozzle tip
-        const tipGeometry = new THREE.ConeGeometry(0.05, 0.1, 12);
-        const tip = new THREE.Mesh(tipGeometry, nozzleMaterial);
-        tip.position.y = -0.2;
-        tip.rotation.z = Math.PI;
-        nozzleGroup.add(tip);
+        // Grip ridges on adapter
+        for (let i = 0; i < 3; i++) {
+            const ridgeGeometry = new THREE.TorusGeometry(0.075, 0.008, 6, 16);
+            const ridge = new THREE.Mesh(ridgeGeometry, nozzleMaterial);
+            ridge.rotation.x = Math.PI / 2;
+            ridge.position.y = -0.04 + i * 0.04;
+            nozzleGroup.add(ridge);
+        }
 
-        hoseGroup.add(nozzleGroup);
+        this.hoseGroup.add(nozzleGroup);
         this.nozzle = nozzleGroup;
 
-        this.hose = hoseGroup;
+        // Create gas flow particles along the hose
+        this.createGasFlowParticles(hoseCurve);
+
+        this.hose = hose;
+        this.hoseCurve = hoseCurve;
     }
 
     createBalloons() {
@@ -243,31 +257,69 @@ export class AvogadroScene {
         mainBalloonGroup.position.set(2.5, 3, 0);
         this.group.add(mainBalloonGroup);
 
+        // Balloon body with slight teardrop shape
         const mainGeometry = new THREE.SphereGeometry(1, 32, 24);
+        // Slightly stretch bottom to make teardrop
+        const positions = mainGeometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+            const y = positions.getY(i);
+            if (y < 0) {
+                positions.setY(i, y * 1.15);
+            }
+        }
+        mainGeometry.computeVertexNormals();
+
         const mainMaterial = new THREE.MeshPhysicalMaterial({
             color: colors[0],
             transparent: true,
-            opacity: 0.8,
-            metalness: 0.1,
-            roughness: 0.3,
+            opacity: 0.75,
+            metalness: 0.05,
+            roughness: 0.25,
             side: THREE.DoubleSide
         });
         const mainBalloon = new THREE.Mesh(mainGeometry, mainMaterial);
         mainBalloonGroup.add(mainBalloon);
 
-        // Balloon knot
-        const knotGeometry = new THREE.SphereGeometry(0.08, 8, 8);
-        const knotMaterial = new THREE.MeshStandardMaterial({ color: colors[0] });
-        const knot = new THREE.Mesh(knotGeometry, knotMaterial);
-        knot.position.y = -1;
-        knot.scale.y = 1.5;
-        mainBalloonGroup.add(knot);
+        // Balloon knot (tied opening where hose connects)
+        const knotGroup = new THREE.Group();
+        knotGroup.position.y = -1;
+        mainBalloonGroup.add(knotGroup);
 
-        // String
-        const stringGeometry = new THREE.CylinderGeometry(0.01, 0.01, 1.5, 4);
-        const stringMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+        // Neck opening transition
+        const neckGeometry = new THREE.CylinderGeometry(0.1, 0.15, 0.12, 12);
+        const knotMaterial = new THREE.MeshStandardMaterial({
+            color: colors[0],
+            roughness: 0.6
+        });
+        const neck = new THREE.Mesh(neckGeometry, knotMaterial);
+        neck.position.y = 0.06;
+        knotGroup.add(neck);
+
+        // Knot bulge
+        const knotGeometry = new THREE.SphereGeometry(0.07, 10, 8);
+        const knot = new THREE.Mesh(knotGeometry, knotMaterial);
+        knot.scale.set(1, 1.3, 0.8);
+        knotGroup.add(knot);
+
+        // Tail below knot
+        const tailGeometry = new THREE.ConeGeometry(0.05, 0.08, 8);
+        const tail = new THREE.Mesh(tailGeometry, knotMaterial);
+        tail.position.y = -0.08;
+        tail.rotation.z = Math.PI;
+        knotGroup.add(tail);
+
+        this.balloonKnot = knotGroup;
+
+        // String attached to knot
+        const stringCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, -1.12, 0),
+            new THREE.Vector3(-0.05, -1.5, 0.02),
+            new THREE.Vector3(0.03, -1.9, -0.02),
+            new THREE.Vector3(-0.02, -2.3, 0.01)
+        ]);
+        const stringGeometry = new THREE.TubeGeometry(stringCurve, 12, 0.008, 4, false);
+        const stringMaterial = new THREE.MeshBasicMaterial({ color: 0x666666 });
         const string = new THREE.Mesh(stringGeometry, stringMaterial);
-        string.position.y = -1.8;
         mainBalloonGroup.add(string);
 
         this.mainBalloon = mainBalloonGroup;
@@ -278,11 +330,11 @@ export class AvogadroScene {
             baseY: 3
         });
 
-        // Create some background balloons (already filled)
+        // Create some background balloons (already filled and floating)
         const bgPositions = [
-            { x: 4, y: 4, z: -1 },
-            { x: 3.5, y: 4.5, z: 1 },
-            { x: 5, y: 3.5, z: 0.5 }
+            { x: 4.5, y: 4.2, z: -1.2 },
+            { x: 4, y: 5, z: 0.8 },
+            { x: 5.5, y: 3.8, z: 0.3 }
         ];
 
         bgPositions.forEach((pos, i) => {
@@ -290,26 +342,32 @@ export class AvogadroScene {
             bgGroup.position.set(pos.x, pos.y, pos.z);
             this.group.add(bgGroup);
 
-            const bgGeometry = new THREE.SphereGeometry(0.6 + Math.random() * 0.3, 16, 12);
+            const size = 0.5 + Math.random() * 0.3;
+            const bgGeometry = new THREE.SphereGeometry(size, 16, 12);
             const bgMaterial = new THREE.MeshPhysicalMaterial({
                 color: colors[(i + 1) % colors.length],
                 transparent: true,
                 opacity: 0.7,
-                metalness: 0.1,
+                metalness: 0.05,
                 roughness: 0.3
             });
             const bgBalloon = new THREE.Mesh(bgGeometry, bgMaterial);
             bgGroup.add(bgBalloon);
 
-            // Knot and string
-            const bgKnot = new THREE.Mesh(knotGeometry.clone(),
-                new THREE.MeshStandardMaterial({ color: colors[(i + 1) % colors.length] }));
-            bgKnot.position.y = -0.6;
-            bgKnot.scale.y = 1.3;
+            // Simple knot for background balloons
+            const bgKnotGeometry = new THREE.SphereGeometry(0.05, 8, 6);
+            const bgKnotMaterial = new THREE.MeshStandardMaterial({
+                color: colors[(i + 1) % colors.length]
+            });
+            const bgKnot = new THREE.Mesh(bgKnotGeometry, bgKnotMaterial);
+            bgKnot.position.y = -size - 0.05;
+            bgKnot.scale.y = 1.4;
             bgGroup.add(bgKnot);
 
-            const bgString = new THREE.Mesh(stringGeometry.clone(), stringMaterial.clone());
-            bgString.position.y = -1.3;
+            // String for background balloons
+            const bgStringGeometry = new THREE.CylinderGeometry(0.006, 0.006, 1.2, 4);
+            const bgString = new THREE.Mesh(bgStringGeometry, stringMaterial.clone());
+            bgString.position.y = -size - 0.7;
             bgGroup.add(bgString);
 
             this.balloons.push({
@@ -388,26 +446,61 @@ export class AvogadroScene {
         this.particleSystem.setTemperature(this.state.temperature);
     }
 
-    createGasFlowParticles() {
-        // Small particles showing gas flow from nozzle to balloon
+    createGasFlowParticles(hoseCurve) {
+        // Small particles showing gas flow along the hose
         this.gasFlowParticles = [];
 
-        for (let i = 0; i < 10; i++) {
-            const geometry = new THREE.SphereGeometry(0.02, 6, 6);
+        for (let i = 0; i < 12; i++) {
+            const geometry = new THREE.SphereGeometry(0.015 + Math.random() * 0.01, 6, 6);
             const material = new THREE.MeshBasicMaterial({
-                color: 0x88ccff,
+                color: 0x99ddff,
                 transparent: true,
-                opacity: 0.6
+                opacity: 0.7
             });
             const particle = new THREE.Mesh(geometry, material);
             particle.visible = false;
-            this.group.add(particle);
+            this.hoseGroup.add(particle);
             this.gasFlowParticles.push({
                 mesh: particle,
-                progress: i / 10,
-                speed: 0.02 + Math.random() * 0.01
+                progress: i / 12,
+                speed: 0.008 + Math.random() * 0.004,
+                active: false
             });
         }
+    }
+
+    updateGasFlowParticles() {
+        if (!this.hoseCurve || !this.gasFlowParticles) return;
+
+        this.gasFlowParticles.forEach((particle) => {
+            // Randomly activate particles
+            if (!particle.active && Math.random() < 0.02) {
+                particle.active = true;
+                particle.progress = 0;
+                particle.mesh.visible = true;
+            }
+
+            if (particle.active) {
+                particle.progress += particle.speed;
+
+                if (particle.progress >= 1) {
+                    particle.active = false;
+                    particle.mesh.visible = false;
+                    particle.progress = 0;
+                } else {
+                    // Position along curve
+                    const point = this.hoseCurve.getPoint(particle.progress);
+                    particle.mesh.position.copy(point);
+
+                    // Slight random offset for natural look
+                    particle.mesh.position.x += (Math.random() - 0.5) * 0.02;
+                    particle.mesh.position.y += (Math.random() - 0.5) * 0.02;
+
+                    // Fade near the end
+                    particle.mesh.material.opacity = particle.progress < 0.8 ? 0.7 : 0.7 * (1 - (particle.progress - 0.8) / 0.2);
+                }
+            }
+        });
     }
 
     setupLighting() {
@@ -433,27 +526,52 @@ export class AvogadroScene {
         if (this.mainBalloonMesh) {
             this.mainBalloonMesh.scale.set(radius, radius * 1.1, radius);
 
-            // Adjust knot position
-            const knot = this.mainBalloon.children[1];
-            if (knot) {
-                knot.position.y = -radius - 0.1;
-            }
-
-            // Adjust string position
-            const string = this.mainBalloon.children[2];
-            if (string) {
-                string.position.y = -radius - 0.85;
+            // Adjust knot position (child index 1 is the knot group)
+            if (this.balloonKnot) {
+                this.balloonKnot.position.y = -radius * 1.15;
             }
 
             // Balloon floats higher with more helium
             const newBalloonY = 3 + (this.state.moles - 1) * 0.5;
             this.mainBalloon.position.y = newBalloonY;
 
+            // Update nozzle position to follow balloon knot
+            if (this.nozzle) {
+                const knotWorldY = newBalloonY + this.balloonKnot.position.y;
+                this.nozzle.position.set(2.5, knotWorldY, 0);
+            }
+
+            // Update hose curve to connect to new knot position
+            this.updateHoseCurve(newBalloonY);
+
             // Update particle center offset to match balloon position
             if (this.particleSystem) {
                 this.particleSystem.setCenterOffset(2.5, newBalloonY, 0);
             }
         }
+    }
+
+    updateHoseCurve(balloonY) {
+        if (!this.hose || !this.hoseGroup) return;
+
+        const knotY = balloonY + (this.balloonKnot ? this.balloonKnot.position.y : -1);
+
+        // Recreate hose with updated endpoint
+        const newCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-2.1, 3.1, 0.1),
+            new THREE.Vector3(-1.5, 2.2, 0.3),
+            new THREE.Vector3(-0.5, 1.5, 0.4),
+            new THREE.Vector3(0.5, 1.3, 0.3),
+            new THREE.Vector3(1.5, Math.min(1.5, knotY - 0.3), 0.15),
+            new THREE.Vector3(2.2, Math.min(1.8, knotY - 0.1), 0.05),
+            new THREE.Vector3(2.5, knotY, 0)
+        ]);
+
+        // Update geometry
+        const newGeometry = new THREE.TubeGeometry(newCurve, 32, 0.06, 8, false);
+        this.hose.geometry.dispose();
+        this.hose.geometry = newGeometry;
+        this.hoseCurve = newCurve;
     }
 
     updateParticleBounds() {
@@ -504,6 +622,9 @@ export class AvogadroScene {
         if (this.mainBalloon) {
             this.balloons[0].baseY = 3 + (this.state.moles - 1) * 0.5;
         }
+
+        // Animate gas flow particles along hose
+        this.updateGasFlowParticles();
 
         if (this.particleSystem) {
             // Particle system uses centerOffset for positioning - no manual offset needed

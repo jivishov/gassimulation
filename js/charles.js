@@ -43,6 +43,7 @@ export class CharlesScene {
         // Animation
         this.flameTime = 0;
         this.flameIntensity = 0.5;
+        this.heatParticles = [];
 
         this.init();
     }
@@ -62,88 +63,109 @@ export class CharlesScene {
     }
 
     createBalloon() {
-        // Balloon envelope (sphere stretched vertically)
-        const balloonGeometry = new THREE.SphereGeometry(this.baseRadius, 32, 24);
-
-        // Stretch to balloon shape
-        const positions = balloonGeometry.attributes.position;
-        for (let i = 0; i < positions.count; i++) {
-            const y = positions.getY(i);
-            if (y > 0) {
-                positions.setY(i, y * 1.3); // Stretch top
-            } else {
-                positions.setY(i, y * 0.7); // Compress bottom
-            }
-        }
-        balloonGeometry.computeVertexNormals();
-
-        // Colorful balloon material with panels
-        const balloonMaterial = new THREE.MeshPhysicalMaterial({
-            color: 0xe63946,
-            transparent: true,
-            opacity: 0.85,
-            side: THREE.DoubleSide,
-            metalness: 0.0,
-            roughness: 0.6,
-        });
-
-        this.balloon = new THREE.Mesh(balloonGeometry, balloonMaterial);
+        this.balloon = new THREE.Group();
         this.balloon.position.y = 3.5;
         this.group.add(this.balloon);
 
-        // Balloon stripes/panels
-        for (let i = 0; i < 8; i++) {
-            const stripeGeometry = new THREE.SphereGeometry(this.baseRadius + 0.01, 4, 24,
-                i * Math.PI / 4, Math.PI / 8);
-
-            // Apply same stretch
-            const stripePositions = stripeGeometry.attributes.position;
-            for (let j = 0; j < stripePositions.count; j++) {
-                const y = stripePositions.getY(j);
-                if (y > 0) {
-                    stripePositions.setY(j, y * 1.3);
-                } else {
-                    stripePositions.setY(j, y * 0.7);
-                }
+        // Create teardrop-shaped balloon envelope using LatheGeometry for realistic shape
+        const points = [];
+        const segments = 20;
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            // Teardrop profile: wider at top, tapers at bottom
+            let radius, y;
+            if (t < 0.7) {
+                // Upper bulbous part
+                const angle = (t / 0.7) * Math.PI;
+                radius = Math.sin(angle) * this.baseRadius;
+                y = Math.cos(angle) * this.baseRadius * 1.2 + this.baseRadius * 0.3;
+            } else {
+                // Lower tapered neck
+                const neckT = (t - 0.7) / 0.3;
+                radius = (1 - neckT) * this.baseRadius * 0.5 + neckT * 0.5;
+                y = -this.baseRadius * 0.9 - neckT * 0.5;
             }
-            stripeGeometry.computeVertexNormals();
-
-            const colors = [0xf1faee, 0x457b9d, 0xf1faee, 0x1d3557,
-                           0xf1faee, 0xa8dadc, 0xf1faee, 0xe63946];
-            const stripeMaterial = new THREE.MeshPhysicalMaterial({
-                color: colors[i],
-                transparent: true,
-                opacity: 0.85,
-                side: THREE.DoubleSide,
-                metalness: 0.0,
-                roughness: 0.6,
-            });
-
-            const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
-            stripe.position.y = 3.5;
-            this.balloon.add(stripe);
+            points.push(new THREE.Vector2(radius, y));
         }
 
-        // Balloon opening at bottom
-        const openingGeometry = new THREE.TorusGeometry(0.5, 0.05, 8, 32);
+        // Create 16 gore panels (vertical sections) with alternating colors
+        const goreColors = [
+            0xe63946, 0xf1faee, 0x457b9d, 0xf1faee,
+            0x1d3557, 0xf1faee, 0xa8dadc, 0xf1faee,
+            0xe63946, 0xf1faee, 0x457b9d, 0xf1faee,
+            0x1d3557, 0xf1faee, 0xa8dadc, 0xf1faee
+        ];
+        const numGores = 16;
+
+        for (let g = 0; g < numGores; g++) {
+            const goreGeometry = new THREE.LatheGeometry(
+                points, 4,
+                (g / numGores) * Math.PI * 2,
+                (1 / numGores) * Math.PI * 2
+            );
+
+            const goreMaterial = new THREE.MeshPhysicalMaterial({
+                color: goreColors[g],
+                transparent: true,
+                opacity: 0.88,
+                side: THREE.DoubleSide,
+                metalness: 0.0,
+                roughness: 0.5,
+            });
+
+            const gore = new THREE.Mesh(goreGeometry, goreMaterial);
+            this.balloon.add(gore);
+        }
+
+        // Vertical seam lines between gores
+        const seamMaterial = new THREE.MeshBasicMaterial({ color: 0x654321 });
+        for (let g = 0; g < numGores; g++) {
+            const angle = (g / numGores) * Math.PI * 2;
+            const seamPoints = [];
+            for (let i = 0; i < points.length; i++) {
+                seamPoints.push(new THREE.Vector3(
+                    Math.cos(angle) * (points[i].x + 0.02),
+                    points[i].y,
+                    Math.sin(angle) * (points[i].x + 0.02)
+                ));
+            }
+            const seamCurve = new THREE.CatmullRomCurve3(seamPoints);
+            const seamGeometry = new THREE.TubeGeometry(seamCurve, 20, 0.02, 4, false);
+            const seam = new THREE.Mesh(seamGeometry, seamMaterial);
+            this.balloon.add(seam);
+        }
+
+        // Crown ring at top
+        const crownGeometry = new THREE.TorusGeometry(0.3, 0.04, 8, 24);
+        const crownMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8b4513,
+            roughness: 0.7
+        });
+        const crown = new THREE.Mesh(crownGeometry, crownMaterial);
+        crown.rotation.x = Math.PI / 2;
+        crown.position.y = this.baseRadius * 1.5;
+        this.balloon.add(crown);
+
+        // Balloon mouth opening at bottom
+        const openingGeometry = new THREE.TorusGeometry(0.5, 0.06, 8, 32);
         const openingMaterial = new THREE.MeshStandardMaterial({
             color: 0x8b4513,
             roughness: 0.8
         });
         const opening = new THREE.Mesh(openingGeometry, openingMaterial);
         opening.rotation.x = Math.PI / 2;
-        opening.position.y = -this.baseRadius * 0.7;
+        opening.position.y = -this.baseRadius * 0.9 - 0.5;
         this.balloon.add(opening);
 
-        // Skirt around opening
-        const skirtGeometry = new THREE.CylinderGeometry(0.5, 0.7, 0.5, 16, 1, true);
+        // Throat/skirt around opening
+        const skirtGeometry = new THREE.CylinderGeometry(0.5, 0.65, 0.4, 24, 1, true);
         const skirtMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8b4513,
+            color: 0xcc4444,
             side: THREE.DoubleSide,
-            roughness: 0.9
+            roughness: 0.8
         });
         const skirt = new THREE.Mesh(skirtGeometry, skirtMaterial);
-        skirt.position.y = -this.baseRadius * 0.7 - 0.25;
+        skirt.position.y = -this.baseRadius * 0.9 - 0.7;
         this.balloon.add(skirt);
     }
 
@@ -247,45 +269,112 @@ export class CharlesScene {
     createFlames(parent) {
         this.flames = [];
 
+        // Create 3 main burner flames
         for (let i = 0; i < 3; i++) {
             const flameGroup = new THREE.Group();
             flameGroup.position.set(-0.15 + i * 0.15, 0.35, 0);
 
-            // Inner flame (bright yellow/white)
-            const innerGeometry = new THREE.ConeGeometry(0.06, 0.4, 8);
-            const innerMaterial = new THREE.MeshBasicMaterial({
-                color: 0xffff88,
+            // Core flame (white-hot center)
+            const coreGeometry = new THREE.ConeGeometry(0.03, 0.5, 8);
+            const coreMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
                 transparent: true,
-                opacity: 0.9
+                opacity: 0.95
+            });
+            const core = new THREE.Mesh(coreGeometry, coreMaterial);
+            core.position.y = 0.25;
+            flameGroup.add(core);
+
+            // Inner flame (bright yellow)
+            const innerGeometry = new THREE.ConeGeometry(0.06, 0.6, 8);
+            const innerMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffdd44,
+                transparent: true,
+                opacity: 0.85
             });
             const inner = new THREE.Mesh(innerGeometry, innerMaterial);
-            inner.position.y = 0.2;
+            inner.position.y = 0.28;
             flameGroup.add(inner);
 
             // Outer flame (orange)
-            const outerGeometry = new THREE.ConeGeometry(0.1, 0.6, 8);
+            const outerGeometry = new THREE.ConeGeometry(0.1, 0.8, 8);
             const outerMaterial = new THREE.MeshBasicMaterial({
                 color: 0xff6600,
                 transparent: true,
                 opacity: 0.6
             });
             const outer = new THREE.Mesh(outerGeometry, outerMaterial);
-            outer.position.y = 0.25;
+            outer.position.y = 0.35;
             flameGroup.add(outer);
 
-            // Flame glow
-            const glowGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+            // Flame tip (red, flickering)
+            const tipGeometry = new THREE.ConeGeometry(0.08, 0.4, 6);
+            const tipMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff3300,
+                transparent: true,
+                opacity: 0.4
+            });
+            const tip = new THREE.Mesh(tipGeometry, tipMaterial);
+            tip.position.y = 0.6;
+            flameGroup.add(tip);
+
+            // Flame glow sphere
+            const glowGeometry = new THREE.SphereGeometry(0.2, 8, 8);
             const glowMaterial = new THREE.MeshBasicMaterial({
                 color: 0xff4400,
                 transparent: true,
-                opacity: 0.3
+                opacity: 0.25
             });
             const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-            glow.position.y = 0.1;
+            glow.position.y = 0.15;
             flameGroup.add(glow);
 
             parent.add(flameGroup);
-            this.flames.push(flameGroup);
+            this.flames.push({
+                group: flameGroup,
+                core: core,
+                inner: inner,
+                outer: outer,
+                tip: tip,
+                glow: glow,
+                phase: i * 0.7  // Offset phase for varied animation
+            });
+        }
+
+        // Create rising heat particles
+        this.createHeatParticles(parent);
+    }
+
+    createHeatParticles(parent) {
+        this.heatParticles = [];
+        const particleCount = 15;
+
+        for (let i = 0; i < particleCount; i++) {
+            const size = 0.02 + Math.random() * 0.03;
+            const geometry = new THREE.SphereGeometry(size, 6, 6);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.6
+            });
+            const particle = new THREE.Mesh(geometry, material);
+
+            // Start below the flames
+            particle.position.set(
+                (Math.random() - 0.5) * 0.3,
+                0.3,
+                (Math.random() - 0.5) * 0.3
+            );
+            particle.visible = false;
+
+            parent.add(particle);
+            this.heatParticles.push({
+                mesh: particle,
+                speed: 0.02 + Math.random() * 0.02,
+                wobble: Math.random() * Math.PI * 2,
+                life: 0,
+                maxLife: 1.5 + Math.random()
+            });
         }
     }
 
@@ -293,37 +382,40 @@ export class CharlesScene {
         this.ropes = [];
         const corners = [[-0.55, 0.55], [0.55, 0.55], [-0.55, -0.55], [0.55, -0.55]];
 
+        // Balloon mouth position (relative to balloon at y=3.5)
+        const balloonMouthY = 3.5 + (-this.baseRadius * 0.9 - 0.5);
+
         corners.forEach(([x, z]) => {
-            const ropeGroup = new THREE.Group();
+            // Create curved rope using CatmullRomCurve3
+            const startPoint = new THREE.Vector3(x, 0, z); // Basket corner
+            const endPoint = new THREE.Vector3(x * 0.7, balloonMouthY, z * 0.7); // Balloon mouth
 
-            // Create rope as a series of small segments (catenary curve approximation)
-            const segments = 10;
-            const startY = 0;
-            const endY = 3.5 - this.baseRadius * 0.7;
-
-            for (let i = 0; i < segments; i++) {
+            // Create curve points with catenary-like sag
+            const curvePoints = [];
+            const segments = 12;
+            for (let i = 0; i <= segments; i++) {
                 const t = i / segments;
-                const nextT = (i + 1) / segments;
+                const y = startPoint.y + t * (endPoint.y - startPoint.y);
 
-                const y1 = startY + t * (endY - startY);
-                const y2 = startY + nextT * (endY - startY);
+                // Catenary sag - more sag in the middle
+                const sag = Math.sin(t * Math.PI) * 0.15;
 
-                // Slight curve inward
-                const curve = Math.sin(t * Math.PI) * 0.1;
-                const nextCurve = Math.sin(nextT * Math.PI) * 0.1;
+                // Interpolate x and z with slight inward curve
+                const xPos = startPoint.x + t * (endPoint.x - startPoint.x) - sag * Math.sign(x);
+                const zPos = startPoint.z + t * (endPoint.z - startPoint.z) - sag * Math.sign(z);
 
-                const segGeometry = new THREE.CylinderGeometry(0.02, 0.02, (endY - startY) / segments);
-                const segMaterial = new THREE.MeshStandardMaterial({
-                    color: 0x8b7355,
-                    roughness: 0.9
-                });
-                const seg = new THREE.Mesh(segGeometry, segMaterial);
-                seg.position.set(x * (1 - curve), (y1 + y2) / 2, z * (1 - curve));
-                ropeGroup.add(seg);
+                curvePoints.push(new THREE.Vector3(xPos, y, zPos));
             }
 
-            this.group.add(ropeGroup);
-            this.ropes.push(ropeGroup);
+            const ropeCurve = new THREE.CatmullRomCurve3(curvePoints);
+            const ropeGeometry = new THREE.TubeGeometry(ropeCurve, 20, 0.018, 6, false);
+            const ropeMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8b7355,
+                roughness: 0.9
+            });
+            const rope = new THREE.Mesh(ropeGeometry, ropeMaterial);
+            this.group.add(rope);
+            this.ropes.push(rope);
         });
     }
 
@@ -401,18 +493,92 @@ export class CharlesScene {
 
     updateFlames() {
         // Animate flames based on intensity
-        this.flameTime += 0.1;
+        this.flameTime += 0.08;
 
-        this.flames.forEach((flame, i) => {
-            const scale = this.flameIntensity * (0.8 + Math.sin(this.flameTime + i) * 0.2);
-            flame.scale.set(scale, scale * 1.2, scale);
-            flame.visible = this.flameIntensity > 0.1;
+        this.flames.forEach((flame) => {
+            const t = this.flameTime + flame.phase;
+
+            // Visibility based on intensity
+            flame.group.visible = this.flameIntensity > 0.1;
+
+            if (!flame.group.visible) return;
+
+            // Base scale from intensity
+            const baseScale = this.flameIntensity;
+
+            // Animate each flame layer with different frequencies
+            const coreFlicker = 0.9 + Math.sin(t * 15) * 0.1;
+            flame.core.scale.set(baseScale * coreFlicker, baseScale * (1 + Math.sin(t * 12) * 0.15), baseScale * coreFlicker);
+
+            const innerFlicker = 0.85 + Math.sin(t * 10 + 0.5) * 0.15;
+            flame.inner.scale.set(baseScale * innerFlicker, baseScale * (1.1 + Math.sin(t * 8) * 0.2), baseScale * innerFlicker);
+
+            const outerFlicker = 0.8 + Math.sin(t * 7 + 1) * 0.2;
+            flame.outer.scale.set(baseScale * outerFlicker, baseScale * (1.2 + Math.sin(t * 6) * 0.25), baseScale * outerFlicker);
+
+            // Tip has more dramatic movement
+            const tipFlicker = 0.7 + Math.sin(t * 5 + 1.5) * 0.3;
+            flame.tip.scale.set(baseScale * tipFlicker, baseScale * (1 + Math.sin(t * 4) * 0.4), baseScale * tipFlicker);
+            flame.tip.position.y = 0.6 + Math.sin(t * 6) * 0.1;
+            flame.tip.rotation.z = Math.sin(t * 8) * 0.1;
+
+            // Glow pulses
+            flame.glow.scale.setScalar(baseScale * (1 + Math.sin(t * 3) * 0.2));
+            flame.glow.material.opacity = 0.2 + Math.sin(t * 4) * 0.1;
         });
 
-        // Update burner light intensity
+        // Animate heat particles rising into balloon
+        this.updateHeatParticles();
+
+        // Update burner light intensity with flicker
         if (this.burnerLight) {
-            this.burnerLight.intensity = this.flameIntensity * 2;
+            this.burnerLight.intensity = this.flameIntensity * 2 * (0.9 + Math.sin(this.flameTime * 10) * 0.1);
         }
+    }
+
+    updateHeatParticles() {
+        if (!this.heatParticles || this.flameIntensity < 0.1) {
+            this.heatParticles.forEach(p => p.mesh.visible = false);
+            return;
+        }
+
+        this.heatParticles.forEach((particle) => {
+            // Randomly spawn particles
+            if (!particle.mesh.visible && Math.random() < 0.03 * this.flameIntensity) {
+                particle.mesh.visible = true;
+                particle.life = 0;
+                particle.mesh.position.set(
+                    (Math.random() - 0.5) * 0.25,
+                    0.5,
+                    (Math.random() - 0.5) * 0.25
+                );
+                particle.mesh.material.opacity = 0.7;
+            }
+
+            if (particle.mesh.visible) {
+                particle.life += 0.016;
+
+                // Rise upward with wobble
+                particle.mesh.position.y += particle.speed * this.flameIntensity;
+                particle.mesh.position.x += Math.sin(this.flameTime * 5 + particle.wobble) * 0.003;
+                particle.mesh.position.z += Math.cos(this.flameTime * 4 + particle.wobble) * 0.003;
+
+                // Fade out as it rises
+                const lifeRatio = particle.life / particle.maxLife;
+                particle.mesh.material.opacity = 0.7 * (1 - lifeRatio);
+
+                // Color shifts from orange to red as it cools
+                const r = 1;
+                const g = 0.4 * (1 - lifeRatio);
+                const b = 0;
+                particle.mesh.material.color.setRGB(r, g, b);
+
+                // Reset when life ends or too high
+                if (particle.life > particle.maxLife || particle.mesh.position.y > 2.5) {
+                    particle.mesh.visible = false;
+                }
+            }
+        });
     }
 
     updateParticleBounds() {
