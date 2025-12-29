@@ -31,7 +31,11 @@
                 <div id="canvas-container"></div>
                 <div class="simulation-info">
                     <div class="info-badge" id="particle-count">Particles: 50</div>
-                    <div class="info-badge" id="fps-counter">FPS: 60</div>
+                    <div class="info-badge" id="scenario-label">Piston-Cylinder</div>
+                </div>
+                <!-- Scenario description overlay -->
+                <div class="scenario-description" id="scenario-description">
+                    <p>Drag the piston handle to change volume and observe pressure changes</p>
                 </div>
             </div>
 
@@ -46,136 +50,267 @@
                     </p>
                 </div>
 
-                <!-- Dynamic Controls -->
+                <!-- Visualization Settings (Collapsible) -->
+                <div class="collapsible-card">
+                    <div class="collapsible-header" id="viz-toggle">
+                        <h3>Visualization Settings</h3>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content" id="viz-content">
+                        <div class="control-item">
+                            <label for="particle-slider">Number of Particles</label>
+                            <input type="range" id="particle-slider" min="10" max="150" value="50" step="1">
+                            <span class="value-display" id="particle-value">50</span>
+                        </div>
+                        <div class="control-item">
+                            <label for="speed-slider">Animation Speed</label>
+                            <input type="range" id="speed-slider" min="0.1" max="3" value="1" step="0.1">
+                            <span class="value-display" id="speed-value">1.0x</span>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="show-trails">
+                            <label for="show-trails">Show particle trails</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="show-collisions" checked>
+                            <label for="show-collisions">Highlight collisions</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Controls -->
                 <div class="controls-card">
                     <h3>Simulation Controls</h3>
 
                     <!-- Boyle's Law Controls -->
                     <div class="control-group" id="boyle-controls">
                         <div class="control-item">
-                            <label for="volume-slider">Volume (L)</label>
-                            <input type="range" id="volume-slider" min="1" max="10" value="5" step="0.1">
+                            <label for="volume-slider">
+                                <span class="var-label">Volume (V)</span>
+                                <span class="unit-label">in Liters</span>
+                            </label>
+                            <input type="range" id="volume-slider" min="2" max="10" value="5" step="0.1">
                             <span class="value-display" id="volume-value">5.0 L</span>
                         </div>
-                        <div class="calculated-value">
-                            <span>Pressure:</span>
-                            <span id="pressure-calculated">2.0 atm</span>
+                        <div class="constant-indicator">
+                            <span class="constant-badge">Constant: T = 273 K, n = 1 mol</span>
                         </div>
                     </div>
 
                     <!-- Charles's Law Controls -->
                     <div class="control-group hidden" id="charles-controls">
                         <div class="control-item">
-                            <label for="temperature-charles">Temperature (K)</label>
-                            <input type="range" id="temperature-charles" min="100" max="500" value="300" step="1">
+                            <label for="temperature-charles">
+                                <span class="var-label">Temperature (T)</span>
+                                <span class="unit-label">in Kelvin</span>
+                            </label>
+                            <input type="range" id="temperature-charles" min="250" max="450" value="300" step="1">
                             <span class="value-display" id="temperature-charles-value">300 K</span>
                         </div>
-                        <div class="calculated-value">
-                            <span>Volume:</span>
-                            <span id="volume-charles-calculated">5.0 L</span>
+                        <div class="control-item">
+                            <label for="flame-intensity">
+                                <span class="var-label">Flame Intensity</span>
+                            </label>
+                            <input type="range" id="flame-intensity" min="0" max="100" value="50" step="1">
+                            <span class="value-display" id="flame-value">50%</span>
+                        </div>
+                        <div class="constant-indicator">
+                            <span class="constant-badge">Constant: P = 1 atm, n = 1 mol</span>
                         </div>
                     </div>
 
                     <!-- Gay-Lussac's Law Controls -->
                     <div class="control-group hidden" id="gayLussac-controls">
                         <div class="control-item">
-                            <label for="temperature-gl">Temperature (K)</label>
-                            <input type="range" id="temperature-gl" min="100" max="500" value="300" step="1">
-                            <span class="value-display" id="temperature-gl-value">300 K</span>
+                            <label for="temperature-gl">
+                                <span class="var-label">Temperature (T)</span>
+                                <span class="unit-label">in Kelvin</span>
+                            </label>
+                            <input type="range" id="temperature-gl" min="300" max="500" value="350" step="1">
+                            <span class="value-display" id="temperature-gl-value">350 K</span>
                         </div>
-                        <div class="calculated-value">
-                            <span>Pressure:</span>
-                            <span id="pressure-gl-calculated">2.0 atm</span>
+                        <div class="control-item">
+                            <label for="stove-heat">
+                                <span class="var-label">Stove Heat Level</span>
+                            </label>
+                            <input type="range" id="stove-heat" min="0" max="100" value="50" step="1">
+                            <span class="value-display" id="stove-value">Medium</span>
+                        </div>
+                        <div class="constant-indicator">
+                            <span class="constant-badge">Constant: V = 10 L, n = 1 mol</span>
                         </div>
                     </div>
 
                     <!-- Avogadro's Law Controls -->
                     <div class="control-group hidden" id="avogadro-controls">
                         <div class="control-item">
-                            <label for="moles-slider">Amount (mol)</label>
-                            <input type="range" id="moles-slider" min="0.5" max="5" value="1" step="0.1">
+                            <label for="moles-slider">
+                                <span class="var-label">Amount of Gas (n)</span>
+                                <span class="unit-label">in Moles</span>
+                            </label>
+                            <input type="range" id="moles-slider" min="0.5" max="4" value="1" step="0.1">
                             <span class="value-display" id="moles-value">1.0 mol</span>
                         </div>
-                        <div class="calculated-value">
-                            <span>Volume:</span>
-                            <span id="volume-avogadro-calculated">22.4 L</span>
+                        <div class="constant-indicator">
+                            <span class="constant-badge">Constant: T = 273 K, P = 1 atm</span>
                         </div>
                     </div>
 
                     <!-- Ideal Gas Law Controls -->
                     <div class="control-group hidden" id="ideal-controls">
                         <div class="control-item">
-                            <label for="pressure-ideal">Pressure (atm)</label>
-                            <input type="range" id="pressure-ideal" min="0.5" max="5" value="1" step="0.1">
-                            <span class="value-display" id="pressure-ideal-value">1.0 atm</span>
+                            <label for="pressure-ideal">
+                                <span class="var-label">Pressure (P)</span>
+                                <span class="unit-label">in atm</span>
+                            </label>
+                            <input type="range" id="pressure-ideal" min="50" max="200" value="100" step="1">
+                            <span class="value-display" id="pressure-ideal-value">100 atm</span>
                         </div>
                         <div class="control-item">
-                            <label for="volume-ideal">Volume (L)</label>
-                            <input type="range" id="volume-ideal" min="1" max="50" value="22.4" step="0.1">
-                            <span class="value-display" id="volume-ideal-value">22.4 L</span>
+                            <label for="volume-ideal">
+                                <span class="var-label">Tank Volume (V)</span>
+                                <span class="unit-label">in Liters</span>
+                            </label>
+                            <input type="range" id="volume-ideal" min="8" max="18" value="12" step="0.5">
+                            <span class="value-display" id="volume-ideal-value">12 L</span>
                         </div>
                         <div class="control-item">
-                            <label for="temperature-ideal">Temperature (K)</label>
-                            <input type="range" id="temperature-ideal" min="100" max="500" value="273" step="1">
-                            <span class="value-display" id="temperature-ideal-value">273 K</span>
-                        </div>
-                        <div class="control-item">
-                            <label for="moles-ideal">Amount (mol)</label>
-                            <input type="range" id="moles-ideal" min="0.1" max="3" value="1" step="0.1">
-                            <span class="value-display" id="moles-ideal-value">1.0 mol</span>
-                        </div>
-                        <div class="calculated-value ideal-result">
-                            <span>PV = nRT Check:</span>
-                            <span id="ideal-check">✓ Balanced</span>
+                            <label for="temperature-ideal">
+                                <span class="var-label">Water Temperature (T)</span>
+                                <span class="unit-label">in Kelvin</span>
+                            </label>
+                            <input type="range" id="temperature-ideal" min="275" max="305" value="288" step="1">
+                            <span class="value-display" id="temperature-ideal-value">288 K (15°C)</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Visualization Settings -->
-                <div class="settings-card">
-                    <h3>Visualization</h3>
-                    <div class="control-item">
-                        <label for="particle-slider">Number of Particles</label>
-                        <input type="range" id="particle-slider" min="10" max="200" value="50" step="1">
-                        <span class="value-display" id="particle-value">50</span>
-                    </div>
-                    <div class="control-item">
-                        <label for="speed-slider">Animation Speed</label>
-                        <input type="range" id="speed-slider" min="0.1" max="3" value="1" step="0.1">
-                        <span class="value-display" id="speed-value">1.0x</span>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="show-trails" checked>
-                        <label for="show-trails">Show particle trails</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="show-collisions" checked>
-                        <label for="show-collisions">Highlight collisions</label>
-                    </div>
-                </div>
-
-                <!-- Live Values Display -->
-                <div class="values-card">
+                <!-- Current State - Dynamic Formula Display -->
+                <div class="state-card">
                     <h3>Current State</h3>
-                    <div class="value-row">
-                        <span class="label">Pressure (P):</span>
-                        <span class="value" id="live-pressure">1.0 atm</span>
+
+                    <!-- Dynamic Formula with Values -->
+                    <div class="dynamic-formula" id="dynamic-formula">
+                        <!-- Boyle's Law Formula -->
+                        <div class="formula-row" id="boyle-formula-display">
+                            <div class="formula-left">
+                                <span class="var P">P</span><span class="var V">V</span> = <span class="var">k</span>
+                            </div>
+                            <div class="formula-calculated">
+                                <span class="calc-value" id="boyle-p-val">2.00</span>
+                                <span class="calc-unit">atm</span>
+                                <span class="calc-times">×</span>
+                                <span class="calc-value" id="boyle-v-val">5.0</span>
+                                <span class="calc-unit">L</span>
+                                <span class="calc-equals">=</span>
+                                <span class="calc-result" id="boyle-k-val">10.0</span>
+                                <span class="calc-unit">L·atm</span>
+                            </div>
+                        </div>
+
+                        <!-- Charles's Law Formula -->
+                        <div class="formula-row hidden" id="charles-formula-display">
+                            <div class="formula-left">
+                                <span class="var V">V</span>/<span class="var T">T</span> = <span class="var">k</span>
+                            </div>
+                            <div class="formula-calculated">
+                                <span class="calc-value" id="charles-v-val">24.6</span>
+                                <span class="calc-unit">L</span>
+                                <span class="calc-divide">÷</span>
+                                <span class="calc-value" id="charles-t-val">300</span>
+                                <span class="calc-unit">K</span>
+                                <span class="calc-equals">=</span>
+                                <span class="calc-result" id="charles-k-val">0.082</span>
+                                <span class="calc-unit">L/K</span>
+                            </div>
+                        </div>
+
+                        <!-- Gay-Lussac's Law Formula -->
+                        <div class="formula-row hidden" id="gayLussac-formula-display">
+                            <div class="formula-left">
+                                <span class="var P">P</span>/<span class="var T">T</span> = <span class="var">k</span>
+                            </div>
+                            <div class="formula-calculated">
+                                <span class="calc-value" id="gl-p-val">1.17</span>
+                                <span class="calc-unit">atm</span>
+                                <span class="calc-divide">÷</span>
+                                <span class="calc-value" id="gl-t-val">350</span>
+                                <span class="calc-unit">K</span>
+                                <span class="calc-equals">=</span>
+                                <span class="calc-result" id="gl-k-val">0.00333</span>
+                                <span class="calc-unit">atm/K</span>
+                            </div>
+                        </div>
+
+                        <!-- Avogadro's Law Formula -->
+                        <div class="formula-row hidden" id="avogadro-formula-display">
+                            <div class="formula-left">
+                                <span class="var V">V</span>/<span class="var n">n</span> = <span class="var">Vm</span>
+                            </div>
+                            <div class="formula-calculated">
+                                <span class="calc-value" id="avo-v-val">22.4</span>
+                                <span class="calc-unit">L</span>
+                                <span class="calc-divide">÷</span>
+                                <span class="calc-value" id="avo-n-val">1.0</span>
+                                <span class="calc-unit">mol</span>
+                                <span class="calc-equals">=</span>
+                                <span class="calc-result" id="avo-vm-val">22.4</span>
+                                <span class="calc-unit">L/mol</span>
+                            </div>
+                        </div>
+
+                        <!-- Ideal Gas Law Formula -->
+                        <div class="formula-row hidden" id="ideal-formula-display">
+                            <div class="formula-left">
+                                <span class="var P">P</span><span class="var V">V</span> = <span class="var n">n</span><span class="var R">R</span><span class="var T">T</span>
+                            </div>
+                            <div class="formula-calculated ideal-calc">
+                                <div class="ideal-left-side">
+                                    <span class="calc-value" id="ideal-p-val">100</span>
+                                    <span class="calc-unit">atm</span>
+                                    <span class="calc-times">×</span>
+                                    <span class="calc-value" id="ideal-v-val">12</span>
+                                    <span class="calc-unit">L</span>
+                                    <span class="calc-equals">=</span>
+                                    <span class="calc-result" id="ideal-pv-val">1200</span>
+                                    <span class="calc-unit">L·atm</span>
+                                </div>
+                                <div class="ideal-right-side">
+                                    <span class="calc-value" id="ideal-n-val">50.7</span>
+                                    <span class="calc-unit">mol</span>
+                                    <span class="calc-times">×</span>
+                                    <span class="calc-value">0.0821</span>
+                                    <span class="calc-unit">L·atm/(mol·K)</span>
+                                    <span class="calc-times">×</span>
+                                    <span class="calc-value" id="ideal-t-val">288</span>
+                                    <span class="calc-unit">K</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="value-row">
-                        <span class="label">Volume (V):</span>
-                        <span class="value" id="live-volume">22.4 L</span>
-                    </div>
-                    <div class="value-row">
-                        <span class="label">Temperature (T):</span>
-                        <span class="value" id="live-temperature">273 K</span>
-                    </div>
-                    <div class="value-row">
-                        <span class="label">Amount (n):</span>
-                        <span class="value" id="live-moles">1.0 mol</span>
-                    </div>
-                    <div class="value-row constant">
-                        <span class="label">R (Gas Constant):</span>
-                        <span class="value">0.0821 L·atm/(mol·K)</span>
+
+                    <!-- Variable Summary -->
+                    <div class="variable-summary" id="variable-summary">
+                        <div class="var-row">
+                            <span class="var-name">Pressure (P):</span>
+                            <span class="var-value" id="live-pressure">2.00 atm</span>
+                        </div>
+                        <div class="var-row">
+                            <span class="var-name">Volume (V):</span>
+                            <span class="var-value" id="live-volume">5.0 L</span>
+                        </div>
+                        <div class="var-row">
+                            <span class="var-name">Temperature (T):</span>
+                            <span class="var-value" id="live-temperature">273 K</span>
+                        </div>
+                        <div class="var-row">
+                            <span class="var-name">Amount (n):</span>
+                            <span class="var-value" id="live-moles">1.0 mol</span>
+                        </div>
+                        <div class="var-row constant-row">
+                            <span class="var-name">Gas Constant (R):</span>
+                            <span class="var-value">0.0821 L·atm/(mol·K)</span>
+                        </div>
                     </div>
                 </div>
 
@@ -188,14 +323,12 @@
         <footer class="info-footer">
             <div class="law-info" id="law-info">
                 <h4>About Boyle's Law</h4>
-                <p>Discovered by Robert Boyle in 1662. This law states that for a fixed amount of gas at constant temperature,
-                pressure and volume are inversely proportional. When you compress a gas (decrease volume),
-                the particles collide more frequently with the container walls, increasing pressure.</p>
+                <p>Discovered by Robert Boyle in 1662. This simulation shows a piston-cylinder system. As you push down the piston (decrease volume), gas molecules have less space and collide more frequently with the walls, increasing pressure. This principle is used in syringes, bicycle pumps, and internal combustion engines.</p>
             </div>
         </footer>
     </div>
 
-    <!-- Three.js and main script -->
+    <!-- Three.js and dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="main.js"></script>
