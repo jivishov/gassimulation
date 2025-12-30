@@ -291,18 +291,11 @@ export class GayLussacScene {
             roughness: 0.25
         });
         const lidBase = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.38, 1.38, 0.08, 64),
+            new THREE.CylinderGeometry(1.38, 1.38, 0.12, 64),
             lidMetal
         );
-        lidBase.position.y = 0.04;
+        lidBase.position.y = 0.06;
         this.lidGroup.add(lidBase);
-
-        const lidDome = new THREE.Mesh(
-            new THREE.SphereGeometry(1.05, 48, 32, 0, Math.PI * 2, 0, Math.PI / 4),
-            lidMetal
-        );
-        lidDome.position.y = 0.1;
-        this.lidGroup.add(lidDome);
 
         // Lid seal ring
         const lidSeal = new THREE.Mesh(
@@ -315,17 +308,17 @@ export class GayLussacScene {
 
         // Lid handle
         const lidHandle = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.13, 0.13, 0.28, 16),
+            new THREE.CylinderGeometry(0.13, 0.13, 0.22, 16),
             darkMetal
         );
-        lidHandle.position.y = 0.55;
+        lidHandle.position.y = 0.23;
         this.lidGroup.add(lidHandle);
 
         const lidHandleTop = new THREE.Mesh(
             new THREE.BoxGeometry(0.7, 0.1, 0.2),
             darkMetal
         );
-        lidHandleTop.position.y = 0.78;
+        lidHandleTop.position.y = 0.4;
         this.lidGroup.add(lidHandleTop);
 
         // Locking bar across lid
@@ -333,19 +326,19 @@ export class GayLussacScene {
             new THREE.BoxGeometry(1.45, 0.06, 0.12),
             darkMetal
         );
-        lockBar.position.y = 0.2;
+        lockBar.position.y = 0.15;
         this.lidGroup.add(lockBar);
 
         const lockPost = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.08, 0.1, 0.2, 16),
+            new THREE.CylinderGeometry(0.08, 0.1, 0.15, 16),
             metalMaterial
         );
-        lockPost.position.set(0, 0.28, 0);
+        lockPost.position.set(0, 0.2, 0);
         this.lidGroup.add(lockPost);
 
         // Safety valve + jiggle weight (centered on lock bar)
         const valveGroup = new THREE.Group();
-        valveGroup.position.set(0, 0.32, 0);
+        valveGroup.position.set(0, 0.25, 0);
         this.lidGroup.add(valveGroup);
 
         const valveBody = new THREE.Mesh(
@@ -369,7 +362,7 @@ export class GayLussacScene {
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
         // Mount gauge on top of the flat lid - prominently visible
-        gaugeGroup.position.set(1.05, 0.5, 0.0);
+        gaugeGroup.position.set(1.05, 0.2, 0.0);
         gaugeGroup.rotation.set(-0.05, -Math.PI / 2.4, 0); // Angled toward camera on rim
         this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
