@@ -17,6 +17,8 @@ export class AvogadroScene {
         this.camera = camera;
         this.group = new THREE.Group();
         this.scene.add(this.group);
+        this.baseParticleDensity = 50;
+        this.lastKnotPosition = new THREE.Vector3(2.5, 2, 0);
 
         // Gas state
         this.state = {
@@ -152,6 +154,9 @@ export class AvogadroScene {
         const warning = new THREE.Mesh(warningGeometry, warningMaterial);
         warning.position.set(0, 1.78, 0.515);
         tankGroup.add(warning);
+
+        // Add clear "HELIUM" text label on the front
+        this.addHeliumTextLabel(tankGroup, new THREE.Vector3(0, 2, 0.52));
 
         // Secondary label on side (rotated)
         const sideLabel = new THREE.Mesh(labelGeometry.clone(), labelMaterial.clone());
@@ -587,26 +592,22 @@ export class AvogadroScene {
             const newBalloonY = 3 + (this.state.moles - 1) * 0.5;
             this.mainBalloon.position.y = newBalloonY;
 
-            // Update nozzle position to follow balloon knot
-            if (this.nozzle) {
-                const knotWorldY = newBalloonY + this.balloonKnot.position.y;
-                this.nozzle.position.set(2.5, knotWorldY, 0);
-            }
-
-            // Update hose curve to connect to new knot position
-            this.updateHoseCurve(newBalloonY);
-
             // Update particle center offset to match balloon position
             if (this.particleSystem) {
                 this.particleSystem.setCenterOffset(2.5, newBalloonY, 0);
             }
+
+            // Keep hose and nozzle aligned with the knot
+            this.updateHoseAndNozzle();
         }
     }
 
-    updateHoseCurve(balloonY) {
+    updateHoseCurve(knotPosition) {
         if (!this.hose || !this.hoseGroup) return;
 
-        const knotY = balloonY + (this.balloonKnot ? this.balloonKnot.position.y : -1);
+        const knotY = knotPosition ? knotPosition.y : (this.balloonKnot ? this.balloonKnot.getWorldPosition(new THREE.Vector3()).y : 2);
+        const knotX = knotPosition ? knotPosition.x : 2.5;
+        const knotZ = knotPosition ? knotPosition.z : 0;
 
         // Recreate hose with updated endpoint
         const newCurve = new THREE.CatmullRomCurve3([
@@ -616,7 +617,7 @@ export class AvogadroScene {
             new THREE.Vector3(0.5, 1.3, 0.3),
             new THREE.Vector3(1.5, Math.min(1.5, knotY - 0.3), 0.15),
             new THREE.Vector3(2.2, Math.min(1.8, knotY - 0.1), 0.05),
-            new THREE.Vector3(2.5, knotY, 0)
+            new THREE.Vector3(knotX, knotY, knotZ)
         ]);
 
         // Update geometry
@@ -624,6 +625,35 @@ export class AvogadroScene {
         this.hose.geometry.dispose();
         this.hose.geometry = newGeometry;
         this.hoseCurve = newCurve;
+    }
+
+    getBalloonKnotWorldPosition() {
+        if (!this.balloonKnot) return null;
+        const position = new THREE.Vector3();
+        if (this.balloonKnot.parent) {
+            this.balloonKnot.parent.updateMatrixWorld(true);
+        }
+        this.balloonKnot.updateMatrixWorld();
+        this.balloonKnot.getWorldPosition(position);
+        return position;
+    }
+
+    updateHoseAndNozzle() {
+        const knotPosition = this.getBalloonKnotWorldPosition();
+        if (!knotPosition) return;
+
+        if (this.nozzle) {
+            this.nozzle.position.copy(knotPosition);
+        }
+
+        if (!this.lastKnotPosition) {
+            this.lastKnotPosition = knotPosition.clone();
+        }
+
+        if (this.lastKnotPosition.distanceTo(knotPosition) > 0.0025) {
+            this.updateHoseCurve(knotPosition);
+            this.lastKnotPosition.copy(knotPosition);
+        }
     }
 
     updateParticleBounds() {
@@ -649,20 +679,22 @@ export class AvogadroScene {
         this.updateBalloonSize();
         this.updateParticleBounds();
 
-        // Reposition all particles to stay inside the new balloon bounds
-        this.particleSystem.repositionParticles();
-
         // Adjust particle count proportionally (more moles = more molecules)
-        const targetCount = Math.round(50 * moles);
-        const currentCount = this.particleSystem.getCount();
+        const newCount = this.calculateParticleCountFromMoles(moles);
+        this.setParticleCount(newCount);
 
-        if (Math.abs(targetCount - currentCount) > 5) {
-            const newCount = Math.min(150, Math.max(10, targetCount));
-            // New particles are automatically created at centerOffset position
-            this.particleSystem.setParticleCount(newCount);
+        // Ensure any reposition after count changes respects updated bounds
+        if (this.particleSystem) {
+            this.particleSystem.repositionParticles();
+            this.particleSystem.enforceContainment();
         }
 
         return this.state;
+    }
+
+    calculateParticleCountFromMoles(moles) {
+        const targetCount = Math.round(this.baseParticleDensity * moles);
+        return Math.min(150, Math.max(10, targetCount));
     }
 
     getState() {
@@ -684,6 +716,9 @@ export class AvogadroScene {
             this.balloons[0].baseY = 3 + (this.state.moles - 1) * 0.5;
         }
 
+        // Keep hose and nozzle attached to the moving balloon knot
+        this.updateHoseAndNozzle();
+
         // Animate gas flow particles along hose
         this.updateGasFlowParticles();
 
@@ -704,9 +739,14 @@ export class AvogadroScene {
 
     setParticleCount(count) {
         if (this.particleSystem) {
-            // New particles are automatically created at centerOffset position
-            this.particleSystem.setParticleCount(count);
+            // Clamp and synchronize with current balloon bounds, then reposition
+            const clampedCount = Math.min(150, Math.max(10, Math.round(count)));
+            this.particleSystem.setParticleCount(clampedCount);
+            this.particleSystem.repositionParticles();
+            this.particleSystem.enforceContainment();
+            return clampedCount;
         }
+        return count;
     }
 
     setAnimationSpeed(speed) {
@@ -743,5 +783,28 @@ export class AvogadroScene {
             Vm: 22.4
         };
         this.setMoles(1.0);
+    }
+
+    addHeliumTextLabel(targetGroup, position, rotationY = 0) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#0b132b';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#00e5ff';
+        ctx.font = 'bold 60px Inter, Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('HELIUM', canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(1.3, 0.65, 1);
+        sprite.position.copy(position);
+        sprite.rotation.y = rotationY;
+        targetGroup.add(sprite);
     }
 }
