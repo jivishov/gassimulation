@@ -199,48 +199,48 @@ export class GayLussacScene {
 
         // Materials
         const metalMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8e8e8e,
-            metalness: 0.9,
-            roughness: 0.2
+            color: 0xd0d0d0,
+            metalness: 1,
+            roughness: 0.18
         });
         const darkMetal = new THREE.MeshStandardMaterial({
-            color: 0x1f1f1f,
+            color: 0x2a2a2a,
             metalness: 0.8,
             roughness: 0.35
         });
         const glassMaterial = new THREE.MeshPhysicalMaterial({
-            color: 0xcdd7e0,
+            color: 0xdbe7f3,
             metalness: 0,
-            roughness: 0.05,
+            roughness: 0.04,
             transparent: true,
-            opacity: 0.25,
+            opacity: 0.22,
             side: THREE.DoubleSide,
-            transmission: 0.7,
-            thickness: 0.15
+            transmission: 0.75,
+            thickness: 0.2
         });
 
         // Pot base plate
         const basePlate = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.4, 1.4, 0.08, 48),
+            new THREE.CylinderGeometry(1.45, 1.45, 0.08, 48),
             darkMetal
         );
         basePlate.position.y = 0.04;
         basePlate.receiveShadow = true;
         cookerGroup.add(basePlate);
 
-        // Pot body (opaque with slight sheen)
+        // Pot body (taller metal)
         const potBody = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.35, 1.3, 1.1, 48, 1, true),
+            new THREE.CylinderGeometry(1.4, 1.35, 1.35, 64, 1, true),
             metalMaterial
         );
-        potBody.position.y = 0.6;
+        potBody.position.y = 0.72;
         potBody.castShadow = true;
         potBody.receiveShadow = true;
         cookerGroup.add(potBody);
 
         // Interior liner (dark) to give depth
         const innerLiner = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.22, 1.22, 1.02, 48, 1, true),
+            new THREE.CylinderGeometry(1.28, 1.28, 1.27, 64, 1, true),
             new THREE.MeshStandardMaterial({
                 color: 0x0f0f0f,
                 metalness: 0.6,
@@ -248,43 +248,39 @@ export class GayLussacScene {
                 side: THREE.BackSide
             })
         );
-        innerLiner.position.y = 0.6;
+        innerLiner.position.y = 0.72;
         cookerGroup.add(innerLiner);
 
         // Glass window band near the top to visualize gas
         const windowBand = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.25, 1.25, 0.65, 48, 1, true, 0, Math.PI * 2),
+            new THREE.CylinderGeometry(1.3, 1.3, 0.55, 64, 1, true),
             glassMaterial
         );
-        windowBand.position.y = 0.8;
+        windowBand.position.y = 1.05;
         cookerGroup.add(windowBand);
 
         // Top rim
         const rim = new THREE.Mesh(
-            new THREE.TorusGeometry(1.35, 0.07, 12, 48),
+            new THREE.TorusGeometry(1.38, 0.07, 16, 64),
             darkMetal
         );
         rim.rotation.x = Math.PI / 2;
-        rim.position.y = 1.16;
+        rim.position.y = 1.4;
         cookerGroup.add(rim);
 
         // Side handles
-        const handleGeo = new THREE.TorusGeometry(0.25, 0.05, 12, 32, Math.PI);
+        const handleGeo = new THREE.BoxGeometry(0.16, 0.12, 0.6);
         const handle1 = new THREE.Mesh(handleGeo, darkMetal);
-        handle1.rotation.y = Math.PI / 2;
-        handle1.rotation.z = Math.PI / 2;
-        handle1.position.set(1.55, 0.85, 0);
+        handle1.position.set(1.65, 0.95, 0);
         cookerGroup.add(handle1);
 
         const handle2 = new THREE.Mesh(handleGeo, darkMetal);
-        handle2.rotation.y = -Math.PI / 2;
-        handle2.rotation.z = Math.PI / 2;
-        handle2.position.set(-1.55, 0.85, 0);
+        handle2.position.set(-1.65, 0.95, 0);
         cookerGroup.add(handle2);
 
         // Lid group
         this.lidGroup = new THREE.Group();
-        this.baseLidY = 1.2;
+        this.baseLidY = 1.48;
         this.lidGroup.position.y = this.baseLidY;
         cookerGroup.add(this.lidGroup);
 
@@ -295,17 +291,17 @@ export class GayLussacScene {
             roughness: 0.25
         });
         const lidBase = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.32, 1.32, 0.08, 48),
+            new THREE.CylinderGeometry(1.38, 1.38, 0.08, 64),
             lidMetal
         );
         lidBase.position.y = 0.04;
         this.lidGroup.add(lidBase);
 
         const lidDome = new THREE.Mesh(
-            new THREE.SphereGeometry(1.15, 48, 32, 0, Math.PI * 2, 0, Math.PI / 3.2),
+            new THREE.SphereGeometry(1.05, 48, 32, 0, Math.PI * 2, 0, Math.PI / 4),
             lidMetal
         );
-        lidDome.position.y = 0.1;
+        lidDome.position.y = 0.12;
         this.lidGroup.add(lidDome);
 
         // Lid seal ring
@@ -319,35 +315,50 @@ export class GayLussacScene {
 
         // Lid handle
         const lidHandle = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.12, 0.14, 0.25, 16),
+            new THREE.CylinderGeometry(0.13, 0.13, 0.28, 16),
             darkMetal
         );
         lidHandle.position.y = 0.55;
         this.lidGroup.add(lidHandle);
 
         const lidHandleTop = new THREE.Mesh(
-            new THREE.BoxGeometry(0.5, 0.08, 0.2),
+            new THREE.BoxGeometry(0.7, 0.1, 0.2),
             darkMetal
         );
-        lidHandleTop.position.y = 0.73;
+        lidHandleTop.position.y = 0.78;
         this.lidGroup.add(lidHandleTop);
 
-        // Safety valve + jiggle weight
+        // Locking bar across lid
+        const lockBar = new THREE.Mesh(
+            new THREE.BoxGeometry(1.45, 0.06, 0.12),
+            darkMetal
+        );
+        lockBar.position.y = 0.2;
+        this.lidGroup.add(lockBar);
+
+        const lockPost = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.1, 0.2, 16),
+            metalMaterial
+        );
+        lockPost.position.set(0, 0.28, 0);
+        this.lidGroup.add(lockPost);
+
+        // Safety valve + jiggle weight (centered on lock bar)
         const valveGroup = new THREE.Group();
-        valveGroup.position.set(-0.45, 0.18, -0.45);
+        valveGroup.position.set(0, 0.32, 0);
         this.lidGroup.add(valveGroup);
 
         const valveBody = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.09, 0.11, 0.16, 16),
+            new THREE.CylinderGeometry(0.08, 0.1, 0.16, 16),
             metalMaterial
         );
         valveGroup.add(valveBody);
 
         const valveCap = new THREE.Mesh(
-            new THREE.ConeGeometry(0.1, 0.12, 16),
+            new THREE.ConeGeometry(0.09, 0.12, 16),
             darkMetal
         );
-        valveCap.position.y = 0.15;
+        valveCap.position.y = 0.16;
         valveGroup.add(valveCap);
         this.valveCap = valveCap;
 
@@ -358,8 +369,8 @@ export class GayLussacScene {
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
         // Mount gauge on top of the flat lid - prominently visible
-        gaugeGroup.position.set(0.75, 0.18, 0.0);
-        gaugeGroup.rotation.set(-0.15, -Math.PI / 2.2, 0); // Angled toward camera on rim
+        gaugeGroup.position.set(1.05, 0.2, 0.0);
+        gaugeGroup.rotation.set(-0.1, -Math.PI / 2.4, 0); // Angled toward camera on rim
         this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
         // Gauge housing (chrome finish)
