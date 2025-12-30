@@ -9,7 +9,7 @@ export class ParticleSystem {
         this.particles = [];
         this.options = {
             count: options.count || 50,
-            baseSpeed: options.baseSpeed || 0.004, // Very slow base speed for visible motion
+            baseSpeed: options.baseSpeed || 0.002, // Very slow base speed for clear motion
             particleSize: options.particleSize || 0.08,
             showTrails: options.showTrails || false, // Trails off by default
             showCollisions: options.showCollisions || true,
@@ -35,9 +35,9 @@ export class ParticleSystem {
         const radius = this.options.particleSize + Math.random() * 0.02;
         const geometry = new THREE.SphereGeometry(radius, 12, 12);
 
-        // Use same aggressive scaling as setTemperature for consistency
-        const speedFactor = Math.pow(this.temperature / 150, 1.2);
-        const color = this.getParticleColor(speedFactor);
+        // Use same scaling as setTemperature for consistency
+        const speedFactor = Math.pow(this.temperature / 300, 1.5);
+        const color = this.getParticleColor(this.temperature);
 
         const material = new THREE.MeshPhongMaterial({
             color: color,
@@ -134,21 +134,19 @@ export class ParticleSystem {
         }
     }
 
-    getParticleColor(speedFactor) {
-        // Smooth color gradient based on temperature/speed
-        // Blue (cold) -> Green (normal) -> Orange -> Red (hot)
-        // Adjusted thresholds for new speed factor range (150K ref, 1.2 power)
-        // At 250K: ~1.5, at 300K: ~2.3, at 400K: ~3.3, at 500K: ~4.3
-        if (speedFactor < 1.8) {
+    getParticleColor(temp) {
+        // Smooth color gradient based on temperature
+        // Blue (cold) -> Cyan -> Green (normal) -> Orange -> Red (hot)
+        if (temp < 280) {
             // Cold: blue
             return new THREE.Color(0x3b82f6);
-        } else if (speedFactor < 2.3) {
-            // Cool: cyan-green
+        } else if (temp < 320) {
+            // Cool: cyan
             return new THREE.Color(0x06b6d4);
-        } else if (speedFactor < 3.0) {
+        } else if (temp < 380) {
             // Normal: green
             return new THREE.Color(0x10b981);
-        } else if (speedFactor < 3.8) {
+        } else if (temp < 450) {
             // Warm: yellow-orange
             return new THREE.Color(0xf59e0b);
         } else {
@@ -159,24 +157,24 @@ export class ParticleSystem {
 
     setTemperature(temp) {
         this.temperature = temp;
-        // More aggressive scaling: lower ref temp (150K) and higher power (1.2)
-        // This gives much wider speed range from slow crawl to fast motion
-        const speedFactor = Math.pow(temp / 150, 1.2);
+        // Slower base with wider dynamic range
+        // At 250K: factor ~0.8, at 350K: factor ~1.5, at 500K: factor ~2.8
+        const speedFactor = Math.pow(temp / 300, 1.5);
         const baseSpeed = this.options.baseSpeed * speedFactor;
-        const color = this.getParticleColor(speedFactor);
+        const color = this.getParticleColor(temp);
 
         this.particles.forEach(particle => {
             // Preserve direction, scale speed
             const currentSpeed = particle.velocity.length();
             if (currentSpeed > 0.0001) {
                 // Scale to new temperature-based speed with some randomness
-                const newSpeed = baseSpeed * (0.85 + Math.random() * 0.3);
+                const newSpeed = baseSpeed * (0.9 + Math.random() * 0.2);
                 particle.velocity.normalize().multiplyScalar(newSpeed);
             } else {
                 // Particle was stationary, give it new random velocity
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos(2 * Math.random() - 1);
-                const speed = baseSpeed * (0.7 + Math.random() * 0.6);
+                const speed = baseSpeed * (0.8 + Math.random() * 0.4);
                 particle.velocity.set(
                     speed * Math.sin(phi) * Math.cos(theta),
                     speed * Math.sin(phi) * Math.sin(theta),
@@ -210,6 +208,16 @@ export class ParticleSystem {
                 this.removeParticle();
             }
         }
+    }
+
+    setParticleSize(size) {
+        this.options.particleSize = size;
+        // Update existing particles' scale
+        this.particles.forEach(particle => {
+            const scale = size / 0.08; // 0.08 is the default size
+            particle.mesh.scale.set(scale, scale, scale);
+            particle.radius = size + Math.random() * 0.02;
+        });
     }
 
     // Constrain particles to cylindrical bounds (for piston, cooker, etc.)
@@ -291,7 +299,7 @@ export class ParticleSystem {
 
     update(deltaTime, useBoxBounds = true, cylinderParams = null) {
         // Speed factor for reference (actual speed set in setTemperature)
-        const speedFactor = Math.pow(this.temperature / 150, 1.2);
+        const speedFactor = Math.pow(this.temperature / 300, 1.5);
 
         this.particles.forEach((particle, index) => {
             const mesh = particle.mesh;

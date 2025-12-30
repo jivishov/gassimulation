@@ -401,6 +401,14 @@ function setupEventListeners() {
         }
     });
 
+    document.getElementById('size-slider').addEventListener('input', (e) => {
+        const size = parseFloat(e.target.value);
+        document.getElementById('size-value').textContent = size.toFixed(2);
+        if (currentScene && currentScene.setParticleSize) {
+            currentScene.setParticleSize(size);
+        }
+    });
+
     document.getElementById('show-trails').addEventListener('change', (e) => {
         if (currentScene && currentScene.setShowTrails) {
             currentScene.setShowTrails(e.target.checked);

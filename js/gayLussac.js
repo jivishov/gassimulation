@@ -759,6 +759,12 @@ export class GayLussacScene {
         }
     }
 
+    setParticleSize(size) {
+        if (this.particleSystem) {
+            this.particleSystem.setParticleSize(size);
+        }
+    }
+
     setShowTrails(show) {
         if (this.particleSystem) {
             this.particleSystem.options.showTrails = show;

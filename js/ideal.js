@@ -653,6 +653,12 @@ export class IdealScene {
         }
     }
 
+    setParticleSize(size) {
+        if (this.particleSystem) {
+            this.particleSystem.setParticleSize(size);
+        }
+    }
+
     setShowTrails(show) {
         if (this.particleSystem) {
             this.particleSystem.options.showTrails = show;
