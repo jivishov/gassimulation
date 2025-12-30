@@ -463,6 +463,29 @@ export class ParticleSystem {
         });
     }
 
+    enforceContainment() {
+        if (this.sphereParams) {
+            const { radius, centerY = 0 } = this.sphereParams;
+            this.particles.forEach(particle => {
+                this.constrainToSphere(particle, radius, centerY);
+            });
+        } else {
+            const minX = this.centerOffset.x - this.bounds.x;
+            const maxX = this.centerOffset.x + this.bounds.x;
+            const minY = this.centerOffset.y - this.bounds.y;
+            const maxY = this.centerOffset.y + this.bounds.y;
+            const minZ = this.centerOffset.z - this.bounds.z;
+            const maxZ = this.centerOffset.z + this.bounds.z;
+
+            this.particles.forEach(particle => {
+                const { mesh, radius } = particle;
+                mesh.position.x = Math.min(maxX - radius, Math.max(minX + radius, mesh.position.x));
+                mesh.position.y = Math.min(maxY - radius, Math.max(minY + radius, mesh.position.y));
+                mesh.position.z = Math.min(maxZ - radius, Math.max(minZ + radius, mesh.position.z));
+            });
+        }
+    }
+
     getCount() {
         return this.particles.length;
     }
