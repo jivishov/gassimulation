@@ -162,6 +162,11 @@ function loadScene(law) {
 
     currentLaw = law;
 
+    // Apply slowest animation speed on load
+    if (currentScene && currentScene.setAnimationSpeed) {
+        currentScene.setAnimationSpeed(0.05);
+    }
+
     // Update UI
     updateUI(law);
     updateFormulaDisplay(law);
@@ -384,13 +389,11 @@ function setupEventListeners() {
     // Visualization settings
     document.getElementById('particle-slider').addEventListener('input', (e) => {
         const count = parseInt(e.target.value);
-        let appliedCount = count;
         if (currentScene && currentScene.setParticleCount) {
-            appliedCount = currentScene.setParticleCount(count);
+            currentScene.setParticleCount(count);
         }
-        document.getElementById('particle-slider').value = appliedCount;
-        document.getElementById('particle-value').textContent = appliedCount;
-        document.getElementById('particle-count').textContent = `Particles: ${appliedCount}`;
+        document.getElementById('particle-value').textContent = count;
+        document.getElementById('particle-count').textContent = `Particles: ${count}`;
     });
 
     document.getElementById('speed-slider').addEventListener('input', (e) => {
@@ -467,11 +470,11 @@ function resetControlValues() {
             break;
     }
 
-    // Reset visualization settings
+    // Reset visualization settings - start with slowest speed
     document.getElementById('particle-slider').value = 50;
     document.getElementById('particle-value').textContent = '50';
-    document.getElementById('speed-slider').value = 1;
-    document.getElementById('speed-value').textContent = '1.0x';
+    document.getElementById('speed-slider').value = 0.05;
+    document.getElementById('speed-value').textContent = '0.1x';
     document.getElementById('show-trails').checked = false;
     document.getElementById('show-collisions').checked = true;
 }
