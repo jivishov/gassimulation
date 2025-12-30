@@ -228,19 +228,19 @@ export class GayLussacScene {
         basePlate.receiveShadow = true;
         cookerGroup.add(basePlate);
 
-        // Pot body (taller metal)
+        // Pot body (transparent to show particles)
         const potBody = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.4, 1.35, 1.35, 64, 1, true),
-            metalMaterial
+            new THREE.CylinderGeometry(1.4, 1.35, 1.25, 64, 1, true),
+            glassMaterial
         );
-        potBody.position.y = 0.72;
-        potBody.castShadow = true;
-        potBody.receiveShadow = true;
+        potBody.position.y = 0.65;
+        potBody.castShadow = false;
+        potBody.receiveShadow = false;
         cookerGroup.add(potBody);
 
         // Interior liner (dark) to give depth
         const innerLiner = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.28, 1.28, 1.27, 64, 1, true),
+            new THREE.CylinderGeometry(1.25, 1.25, 1.15, 64, 1, true),
             new THREE.MeshStandardMaterial({
                 color: 0x0f0f0f,
                 metalness: 0.6,
@@ -248,7 +248,7 @@ export class GayLussacScene {
                 side: THREE.BackSide
             })
         );
-        innerLiner.position.y = 0.72;
+        innerLiner.position.y = 0.65;
         cookerGroup.add(innerLiner);
 
         // Glass window band near the top to visualize gas
@@ -256,7 +256,7 @@ export class GayLussacScene {
             new THREE.CylinderGeometry(1.3, 1.3, 0.55, 64, 1, true),
             glassMaterial
         );
-        windowBand.position.y = 1.05;
+        windowBand.position.y = 0.95;
         cookerGroup.add(windowBand);
 
         // Top rim
@@ -265,7 +265,7 @@ export class GayLussacScene {
             darkMetal
         );
         rim.rotation.x = Math.PI / 2;
-        rim.position.y = 1.4;
+        rim.position.y = 1.28;
         cookerGroup.add(rim);
 
         // Side handles
@@ -280,7 +280,7 @@ export class GayLussacScene {
 
         // Lid group
         this.lidGroup = new THREE.Group();
-        this.baseLidY = 1.48;
+        this.baseLidY = 1.35;
         this.lidGroup.position.y = this.baseLidY;
         cookerGroup.add(this.lidGroup);
 
@@ -301,7 +301,7 @@ export class GayLussacScene {
             new THREE.SphereGeometry(1.05, 48, 32, 0, Math.PI * 2, 0, Math.PI / 4),
             lidMetal
         );
-        lidDome.position.y = 0.12;
+        lidDome.position.y = 0.1;
         this.lidGroup.add(lidDome);
 
         // Lid seal ring
@@ -369,8 +369,8 @@ export class GayLussacScene {
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
         // Mount gauge on top of the flat lid - prominently visible
-        gaugeGroup.position.set(1.05, 0.2, 0.0);
-        gaugeGroup.rotation.set(-0.1, -Math.PI / 2.4, 0); // Angled toward camera on rim
+        gaugeGroup.position.set(1.05, 0.32, 0.0);
+        gaugeGroup.rotation.set(-0.05, -Math.PI / 2.4, 0); // Angled toward camera on rim
         this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
         // Gauge housing (chrome finish)
@@ -476,12 +476,13 @@ export class GayLussacScene {
         gaugeGroup.add(glass);
 
         // Mounting stem connecting gauge to lid surface
+        // Mounting stem connecting gauge to lid surface
         const stemCurve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(0, 0, -0.06),
-            new THREE.Vector3(-0.1, -0.1, -0.12),
-            new THREE.Vector3(-0.2, -0.18, -0.18)
+            new THREE.Vector3(0, -0.05, -0.04),
+            new THREE.Vector3(-0.05, -0.18, -0.12),
+            new THREE.Vector3(-0.1, -0.28, -0.18)
         ]);
-        const stemGeometry = new THREE.TubeGeometry(stemCurve, 12, 0.03, 8, false);
+        const stemGeometry = new THREE.TubeGeometry(stemCurve, 16, 0.035, 10, false);
         const stemMaterial = new THREE.MeshStandardMaterial({
             color: 0x777777,
             metalness: 0.85,
@@ -546,13 +547,13 @@ export class GayLussacScene {
         });
 
         // Cooker center is at y=1.1 (cooker body center)
-        this.particleSystem.setCenterOffset(0, 0.85, 0);
+        this.particleSystem.setCenterOffset(0, 0.75, 0);
 
         // Cylindrical bounds for pressure cooker (radius ~1.1, height from bottom to lid)
         this.cylinderParams = {
             radius: 1.1,
             yMin: 0.1,   // Cooker base on stove surface
-            yMax: this.baseLidY - 0.12   // Just below lid with a tighter seal
+            yMax: this.baseLidY - 0.08   // Just below lid with a tighter seal
         };
 
         this.particleSystem.setBounds(1.1, 0.6, 1.1);
@@ -717,16 +718,18 @@ export class GayLussacScene {
         // Gay-Lussac's Law: P₁/T₁ = P₂/T₂ = k
         this.state.pressure = this.state.k * temp;
 
+        // Drive flame level from temperature range (300–500 K)
+        const minT = 300;
+        const maxT = 500;
+        const normalized = Math.min(1, Math.max(0, (temp - minT) / (maxT - minT)));
+        this.heatLevel = normalized;
+
         // Update particle speeds
         this.particleSystem.setTemperature(temp);
 
         this.updatePressureGauge();
 
         return this.state;
-    }
-
-    setHeatLevel(level) {
-        this.heatLevel = level / 100;
     }
 
     getState() {

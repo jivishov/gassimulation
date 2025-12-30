@@ -324,18 +324,9 @@ function setupEventListeners() {
         }
     });
 
-    document.getElementById('stove-heat').addEventListener('input', (e) => {
-        const heat = parseFloat(e.target.value);
-        let label = 'Off';
-        if (heat > 75) label = 'High';
-        else if (heat > 50) label = 'Medium-High';
-        else if (heat > 25) label = 'Medium';
-        else if (heat > 0) label = 'Low';
-        document.getElementById('stove-value').textContent = label;
-        if (currentScene && currentScene.setHeatLevel) {
-            currentScene.setHeatLevel(heat);
-        }
-    });
+    // Hide stove heat slider for Gay-Lussac (temperature drives flame)
+    const stoveControl = document.getElementById('stove-heat').closest('.control-item');
+    if (stoveControl) stoveControl.classList.add('hidden');
 
     // Avogadro's Law controls
     document.getElementById('moles-slider').addEventListener('input', (e) => {
