@@ -20,6 +20,8 @@ export class IdealScene {
 
         // Gas constant
         this.R = 0.0821; // L·atm/(mol·K)
+        this.basePressure = 200;
+        this.baseTankDimensions = { radius: 0.38, height: 2.3, yMin: 0.1 };
 
         // Gas state
         this.state = {
@@ -44,6 +46,8 @@ export class IdealScene {
         // Animation
         this.waterTime = 0;
         this.bubbleTime = 0;
+        this.bubbleRate = 0.006;
+        this.bubbleRiseMultiplier = 1;
 
         this.init();
     }
@@ -57,6 +61,7 @@ export class IdealScene {
         this.createParticles();
         this.createInfoPanel();
         this.setupLighting();
+        this.updateBubbleDynamics();
 
         // Set camera position
         this.camera.position.set(5, 2, 8);
@@ -430,17 +435,20 @@ export class IdealScene {
             showCollisions: true
         });
 
-        // Tank center is at y=1.25 (center of 2.5 tall cylinder)
-        this.particleSystem.setCenterOffset(0, 1.25, 0);
+        const base = this.baseTankDimensions;
+        const baseHeight = base.height;
+
+        // Tank center is at half the height above the boot
+        this.particleSystem.setCenterOffset(0, base.yMin + baseHeight / 2, 0);
 
         // Cylindrical bounds for scuba tank (radius ~0.4, height from bottom to top dome)
         this.cylinderParams = {
-            radius: 0.38,
-            yMin: 0.1,   // Tank bottom with boot
-            yMax: 2.4    // Tank top before valve
+            radius: base.radius,
+            yMin: base.yMin,                 // Tank bottom with boot
+            yMax: base.yMin + baseHeight     // Tank top before valve
         };
 
-        this.particleSystem.setBounds(0.35, 1.1, 0.35);
+        this.particleSystem.setBounds(base.radius, baseHeight / 2, base.radius);
         this.particleSystem.createParticles();
         this.particleSystem.setTemperature(this.state.temperature);
     }
@@ -502,6 +510,31 @@ export class IdealScene {
         }
     }
 
+    updateTankBounds() {
+        if (!this.particleSystem) return;
+
+        const base = this.baseTankDimensions;
+        const volumeScale = Math.cbrt(this.state.volume / 12);
+        const radius = base.radius * volumeScale;
+        const height = base.height * volumeScale;
+        const yMin = base.yMin;
+        const yMax = yMin + height;
+
+        this.cylinderParams = { radius, yMin, yMax };
+        this.particleSystem.setBounds(radius, height / 2, radius);
+        this.particleSystem.setCenterOffset(0, yMin + height / 2, 0);
+        this.particleSystem.repositionParticles();
+    }
+
+    updateBubbleDynamics() {
+        const pressureFactor = Math.max(0.2, Math.min(1.5, this.state.pressure / this.basePressure));
+        const tempFactor = Math.max(0.7, Math.min(1.3, this.state.temperature / 288));
+
+        // Higher pressure increases spawn rate, higher temp slightly speeds rise
+        this.bubbleRate = 0.003 + 0.007 * pressureFactor;
+        this.bubbleRiseMultiplier = 0.8 + 0.5 * pressureFactor + 0.3 * (tempFactor - 1);
+    }
+
     calculateMoles() {
         // PV = nRT  →  n = PV/RT
         this.state.moles = (this.state.pressure * this.state.volume) /
@@ -512,12 +545,25 @@ export class IdealScene {
         this.state.pressure = pressure;
         this.calculateMoles();
         this.updatePressureGauge();
+        this.updateBubbleDynamics();
 
         // Adjust particle behavior based on pressure
-        const pressureFactor = pressure / 200;
-        this.particleSystem.particles.forEach(p => {
-            p.velocity.multiplyScalar(pressureFactor);
-        });
+        if (this.particleSystem) {
+            const baseSpeed = this.particleSystem.options.baseSpeed *
+                              Math.sqrt(this.state.temperature / 273);
+            const pressureFactor = this.state.pressure / this.basePressure;
+
+            this.particleSystem.particles.forEach(p => {
+                const dir = p.velocity.lengthSq() > 0 ? p.velocity.clone().normalize() :
+                    new THREE.Vector3(
+                        (Math.random() - 0.5),
+                        (Math.random() - 0.5),
+                        (Math.random() - 0.5)
+                    ).normalize();
+                const scaledSpeed = baseSpeed * pressureFactor;
+                p.velocity.copy(dir.multiplyScalar(scaledSpeed));
+            });
+        }
 
         return this.state;
     }
@@ -525,6 +571,7 @@ export class IdealScene {
     setVolume(volume) {
         this.state.volume = volume;
         this.calculateMoles();
+        this.updateTankBounds();
 
         // Visually adjust tank (subtle scale)
         if (this.tank) {
@@ -538,7 +585,10 @@ export class IdealScene {
     setTemperature(temp) {
         this.state.temperature = temp;
         this.calculateMoles();
-        this.particleSystem.setTemperature(temp);
+        if (this.particleSystem) {
+            this.particleSystem.setTemperature(temp);
+        }
+        this.updateBubbleDynamics();
 
         return this.state;
     }
@@ -559,8 +609,11 @@ export class IdealScene {
         }
 
         // Animate bubbles
+        const spawnChance = this.bubbleRate * deltaTime;
+        const riseFactor = this.bubbleRiseMultiplier;
+
         this.bubbles.forEach((bubble, i) => {
-            if (Math.random() < 0.01) {
+            if (Math.random() < spawnChance) {
                 bubble.mesh.visible = true;
                 bubble.mesh.position.set(
                     (Math.random() - 0.5) * 6,
@@ -570,9 +623,9 @@ export class IdealScene {
             }
 
             if (bubble.mesh.visible) {
-                bubble.mesh.position.y += bubble.speed;
-                bubble.mesh.position.x += Math.sin(this.waterTime * 3 + bubble.wobble) * 0.005;
-                bubble.mesh.position.z += Math.cos(this.waterTime * 2 + bubble.wobble) * 0.005;
+                bubble.mesh.position.y += bubble.speed * riseFactor;
+                bubble.mesh.position.x += Math.sin(this.waterTime * 3 + bubble.wobble) * 0.005 * riseFactor;
+                bubble.mesh.position.z += Math.cos(this.waterTime * 2 + bubble.wobble) * 0.005 * riseFactor;
 
                 // Reset when reaching surface
                 if (bubble.mesh.position.y > 5) {
