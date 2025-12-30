@@ -479,7 +479,7 @@ export class AvogadroScene {
     createParticles() {
         this.particleSystem = new ParticleSystem(this.scene, {
             count: 50,
-            baseSpeed: 0.012,
+            baseSpeed: 0.006,
             particleSize: 0.04,
             showCollisions: true
         });

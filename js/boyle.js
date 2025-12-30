@@ -328,7 +328,7 @@ export class BoyleScene {
     createParticles() {
         this.particleSystem = new ParticleSystem(this.scene, {
             count: 50,
-            baseSpeed: 0.018,
+            baseSpeed: 0.009,
             particleSize: 0.06,
             showCollisions: true
         });

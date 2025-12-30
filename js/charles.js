@@ -446,7 +446,7 @@ export class CharlesScene {
     createParticles() {
         this.particleSystem = new ParticleSystem(this.scene, {
             count: 50,
-            baseSpeed: 0.015,
+            baseSpeed: 0.0075,
             particleSize: 0.05,
             showCollisions: true
         });

@@ -541,7 +541,7 @@ export class GayLussacScene {
     createParticles() {
         this.particleSystem = new ParticleSystem(this.scene, {
             count: 50,
-            baseSpeed: 0.02,
+            baseSpeed: 0.01,
             particleSize: 0.05,
             showCollisions: true
         });

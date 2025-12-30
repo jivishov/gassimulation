@@ -9,7 +9,7 @@ export class ParticleSystem {
         this.particles = [];
         this.options = {
             count: options.count || 50,
-            baseSpeed: options.baseSpeed || 0.002, // Very slow base speed for clear motion
+            baseSpeed: options.baseSpeed || 0.001, // Very slow base speed for clear motion
             particleSize: options.particleSize || 0.08,
             showTrails: options.showTrails || false, // Trails off by default
             showCollisions: options.showCollisions || true,
