@@ -369,7 +369,7 @@ export class GayLussacScene {
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
         // Mount gauge on top of the flat lid - prominently visible
-        gaugeGroup.position.set(1.05, 0.32, 0.0);
+        gaugeGroup.position.set(1.05, 0.5, 0.0);
         gaugeGroup.rotation.set(-0.05, -Math.PI / 2.4, 0); // Angled toward camera on rim
         this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
@@ -479,8 +479,8 @@ export class GayLussacScene {
         // Mounting stem connecting gauge to lid surface
         const stemCurve = new THREE.CatmullRomCurve3([
             new THREE.Vector3(0, -0.05, -0.04),
-            new THREE.Vector3(-0.05, -0.18, -0.12),
-            new THREE.Vector3(-0.1, -0.28, -0.18)
+            new THREE.Vector3(-0.05, -0.22, -0.12),
+            new THREE.Vector3(-0.12, -0.35, -0.18)
         ]);
         const stemGeometry = new THREE.TubeGeometry(stemCurve, 16, 0.035, 10, false);
         const stemMaterial = new THREE.MeshStandardMaterial({

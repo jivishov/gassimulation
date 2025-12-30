@@ -198,6 +198,12 @@ function updateUI(law) {
     });
     document.getElementById(`${law}-controls`).classList.remove('hidden');
 
+    // Hide stove heat slider when not used (Gay-Lussac driven by temperature)
+    const stoveControl = document.getElementById('stove-heat')?.closest('.control-item');
+    if (stoveControl) {
+        stoveControl.style.display = law === 'gayLussac' ? 'none' : '';
+    }
+
     // Show/hide formula displays
     document.querySelectorAll('.formula-row').forEach(row => {
         row.classList.add('hidden');
