@@ -228,68 +228,62 @@ body {
     line-height: 1.4;
 }
 
-/* Collapsible Card */
-.collapsible-card {
-    padding: 0;
+/* Visualization Settings Section (inside controls card) */
+.viz-settings-section {
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
     overflow: hidden;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    flex-shrink: 0;
-    min-height: 40px;
-    order: 1;
 }
 
-.formula-card {
-    order: 0;
-}
-
-.controls-card {
-    order: 2;
-}
-
-.state-card {
-    order: 3;
-}
-
-.collapsible-header {
-    display: flex !important;
+.viz-toggle {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 0.75rem;
     cursor: pointer;
+    background: rgba(79, 70, 229, 0.1);
     transition: background 0.2s ease;
-    background: var(--bg-card);
 }
 
-.collapsible-header:hover {
-    background: var(--bg-card-hover);
+.viz-toggle:hover {
+    background: rgba(79, 70, 229, 0.2);
 }
 
-.collapsible-header h3 {
-    margin: 0;
+.viz-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .collapse-icon {
     color: var(--text-muted);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     transition: transform 0.3s ease;
 }
 
-.collapsible-card.collapsed .collapse-icon {
+.viz-settings-section.collapsed .collapse-icon {
     transform: rotate(-90deg);
 }
 
-.collapsible-content {
-    padding: 0 1rem 1rem;
+.viz-content {
+    padding: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    transition: all 0.3s ease;
+    gap: 0.6rem;
+    background: var(--bg-dark);
 }
 
-.collapsible-card.collapsed .collapsible-content {
+.viz-settings-section.collapsed .viz-content {
     display: none;
+}
+
+.section-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 0.5rem 0;
 }
 
 /* Control Items */

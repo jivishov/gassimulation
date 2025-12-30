@@ -288,8 +288,8 @@ function setupEventListeners() {
 
     // Collapsible visualization panel
     document.getElementById('viz-toggle').addEventListener('click', () => {
-        const card = document.querySelector('.collapsible-card');
-        card.classList.toggle('collapsed');
+        const section = document.querySelector('.viz-settings-section');
+        section.classList.toggle('collapsed');
     });
 
     // Boyle's Law controls
