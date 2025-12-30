@@ -728,26 +728,21 @@ export class AvogadroScene {
                 this.mainBalloon.position.y,
                 this.mainBalloon.position.z
             );
-            // Clamp particles back inside if drifted due to fast motion
-            this.particleSystem.repositionParticles();
 
-            // Particle system uses centerOffset for positioning - no manual offset needed
+            // Update particle physics with animation speed
             this.particleSystem.update(deltaTime);
-            // Final containment guard in case of numerical drift
+
+            // Ensure particles stay within balloon bounds
             this.particleSystem.enforceContainment();
         }
     }
 
     setParticleCount(count) {
         if (this.particleSystem) {
-            // Clamp and synchronize with current balloon bounds, then reposition
-            const clampedCount = Math.min(150, Math.max(10, Math.round(count)));
-            this.particleSystem.setParticleCount(clampedCount);
+            this.particleSystem.setParticleCount(count);
             this.particleSystem.repositionParticles();
             this.particleSystem.enforceContainment();
-            return clampedCount;
         }
-        return count;
     }
 
     setAnimationSpeed(speed) {

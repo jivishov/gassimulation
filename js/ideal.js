@@ -642,8 +642,9 @@ export class IdealScene {
 
     setParticleCount(count) {
         if (this.particleSystem) {
-            // New particles are automatically created at centerOffset position
             this.particleSystem.setParticleCount(count);
+            this.particleSystem.repositionParticles();
+            this.particleSystem.enforceContainment();
         }
     }
 

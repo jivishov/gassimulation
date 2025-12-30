@@ -446,6 +446,8 @@ export class BoyleScene {
     setParticleCount(count) {
         if (this.particleSystem) {
             this.particleSystem.setParticleCount(count);
+            this.particleSystem.repositionParticles();
+            this.particleSystem.enforceContainment();
         }
     }
 
