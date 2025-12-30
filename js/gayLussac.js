@@ -361,9 +361,9 @@ export class GayLussacScene {
 
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
-        // Mount gauge clearly above the flat lid - prominently visible
-        gaugeGroup.position.set(0.9, 0.45, 0.0);
-        gaugeGroup.rotation.set(0, -Math.PI / 2.2, 0); // Facing toward camera
+        // Mount gauge on front of lid, facing the user
+        gaugeGroup.position.set(0.0, 0.45, 0.95);
+        gaugeGroup.rotation.set(0, 0, 0); // Facing forward toward camera
         this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
         // Gauge housing (chrome finish)
