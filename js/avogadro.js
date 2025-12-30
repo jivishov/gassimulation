@@ -734,6 +734,8 @@ export class AvogadroScene {
 
             // Particle system uses centerOffset for positioning - no manual offset needed
             this.particleSystem.update(deltaTime);
+            // Final containment guard in case of numerical drift
+            this.particleSystem.enforceContainment();
         }
     }
 
