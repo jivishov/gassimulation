@@ -681,10 +681,13 @@ export class AvogadroScene {
 
         // Adjust particle count proportionally (more moles = more molecules)
         const newCount = this.calculateParticleCountFromMoles(moles);
-        this.particleSystem.setParticleCount(newCount);
+        this.setParticleCount(newCount);
 
-        // Reposition all particles to stay inside the new balloon bounds
-        this.particleSystem.repositionParticles();
+        // Ensure any reposition after count changes respects updated bounds
+        if (this.particleSystem) {
+            this.particleSystem.repositionParticles();
+            this.particleSystem.enforceContainment();
+        }
 
         return this.state;
     }
@@ -736,9 +739,14 @@ export class AvogadroScene {
 
     setParticleCount(count) {
         if (this.particleSystem) {
-            // New particles are automatically created at centerOffset position
-            this.particleSystem.setParticleCount(count);
+            // Clamp and synchronize with current balloon bounds, then reposition
+            const clampedCount = Math.min(150, Math.max(10, Math.round(count)));
+            this.particleSystem.setParticleCount(clampedCount);
+            this.particleSystem.repositionParticles();
+            this.particleSystem.enforceContainment();
+            return clampedCount;
         }
+        return count;
     }
 
     setAnimationSpeed(speed) {
