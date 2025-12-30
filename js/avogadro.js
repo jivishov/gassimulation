@@ -115,59 +115,58 @@ export class AvogadroScene {
         cap.position.y = 3.3;
         tankGroup.add(cap);
 
-        // Main ID label on tank (white background)
-        const labelGeometry = new THREE.PlaneGeometry(0.7, 0.5);
+        // Create readable helium tank label using canvas texture
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 256;
+        labelCanvas.height = 192;
+        const ctx = labelCanvas.getContext('2d');
+
+        // Yellow/gold background
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
+
+        // Green header bar
+        ctx.fillStyle = '#228b22';
+        ctx.fillRect(0, 0, labelCanvas.width, 50);
+
+        // "He" symbol in white on green bar
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 36px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('He', labelCanvas.width / 2, 28);
+
+        // "HELIUM" text in black
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 42px Arial, sans-serif';
+        ctx.fillText('HELIUM', labelCanvas.width / 2, 95);
+
+        // "GAS" subtext
+        ctx.font = 'bold 28px Arial, sans-serif';
+        ctx.fillText('GAS', labelCanvas.width / 2, 135);
+
+        // Red warning stripe at bottom
+        ctx.fillStyle = '#cc0000';
+        ctx.fillRect(0, 165, labelCanvas.width, 27);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px Arial, sans-serif';
+        ctx.fillText('CAUTION: COMPRESSED GAS', labelCanvas.width / 2, 178);
+
+        const labelTexture = new THREE.CanvasTexture(labelCanvas);
+        const labelGeometry = new THREE.PlaneGeometry(0.8, 0.6);
         const labelMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+            map: labelTexture,
             side: THREE.DoubleSide
         });
         const label = new THREE.Mesh(labelGeometry, labelMaterial);
-        label.position.set(0, 2, 0.51);
+        label.position.set(0, 2.2, 0.51);
         tankGroup.add(label);
-
-        // "He" chemical symbol indicator (green box on label)
-        const symbolBgGeometry = new THREE.PlaneGeometry(0.25, 0.25);
-        const symbolBgMaterial = new THREE.MeshBasicMaterial({
-            color: 0x228b22,
-            side: THREE.DoubleSide
-        });
-        const symbolBg = new THREE.Mesh(symbolBgGeometry, symbolBgMaterial);
-        symbolBg.position.set(-0.15, 2.1, 0.515);
-        tankGroup.add(symbolBg);
-
-        // "HELIUM" text label (dark stripe)
-        const textBgGeometry = new THREE.PlaneGeometry(0.6, 0.12);
-        const textBgMaterial = new THREE.MeshBasicMaterial({
-            color: 0x1a1a1a,
-            side: THREE.DoubleSide
-        });
-        const textBg = new THREE.Mesh(textBgGeometry, textBgMaterial);
-        textBg.position.set(0, 1.88, 0.515);
-        tankGroup.add(textBg);
-
-        // Warning stripe at bottom of label (red)
-        const warningGeometry = new THREE.PlaneGeometry(0.6, 0.06);
-        const warningMaterial = new THREE.MeshBasicMaterial({
-            color: 0xcc0000,
-            side: THREE.DoubleSide
-        });
-        const warning = new THREE.Mesh(warningGeometry, warningMaterial);
-        warning.position.set(0, 1.78, 0.515);
-        tankGroup.add(warning);
-
-        // Add clear "HELIUM" text label on the front
-        this.addHeliumTextLabel(tankGroup, new THREE.Vector3(0, 2, 0.52));
 
         // Secondary label on side (rotated)
         const sideLabel = new THREE.Mesh(labelGeometry.clone(), labelMaterial.clone());
-        sideLabel.position.set(0.51, 2, 0);
+        sideLabel.position.set(0.51, 2.2, 0);
         sideLabel.rotation.y = Math.PI / 2;
         tankGroup.add(sideLabel);
-
-        const sideSymbolBg = new THREE.Mesh(symbolBgGeometry.clone(), symbolBgMaterial.clone());
-        sideSymbolBg.position.set(0.515, 2.1, -0.15);
-        sideSymbolBg.rotation.y = Math.PI / 2;
-        tankGroup.add(sideSymbolBg);
 
         // Tank stand/base
         const baseGeometry = new THREE.CylinderGeometry(0.6, 0.7, 0.2, 32);
@@ -491,7 +490,7 @@ export class AvogadroScene {
         // Use spherical bounds for the balloon - particles must stay inside
         const volumeRatio = this.state.volume / 22.4;
         const radiusRatio = Math.cbrt(volumeRatio);
-        const radius = 0.85 * radiusRatio * 0.65; // Larger travel area while staying within balloon
+        const radius = 0.82 * radiusRatio * 0.55; // Keep particles just behind balloon walls
 
         this.particleSystem.sphereParams = {
             radius: radius,
@@ -660,7 +659,7 @@ export class AvogadroScene {
         // Scale bounds with balloon size
         const volumeRatio = this.state.volume / 22.4;
         const radiusRatio = Math.cbrt(volumeRatio);
-        const radius = 0.85 * radiusRatio * 0.65; // Larger travel area while staying within balloon
+        const radius = 0.82 * radiusRatio * 0.55; // Keep particles just behind balloon walls
 
         this.particleSystem.setBounds(radius, radius * 1.1, radius);
 
@@ -791,28 +790,5 @@ export class AvogadroScene {
             Vm: 22.4
         };
         this.setMoles(1.0);
-    }
-
-    addHeliumTextLabel(targetGroup, position, rotationY = 0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-
-        ctx.fillStyle = '#0b132b';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#00e5ff';
-        ctx.font = 'bold 60px Inter, Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('HELIUM', canvas.width / 2, canvas.height / 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(1.3, 0.65, 1);
-        sprite.position.copy(position);
-        sprite.rotation.y = rotationY;
-        targetGroup.add(sprite);
     }
 }
