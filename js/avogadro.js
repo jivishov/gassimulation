@@ -491,7 +491,7 @@ export class AvogadroScene {
         // Use spherical bounds for the balloon - particles must stay inside
         const volumeRatio = this.state.volume / 22.4;
         const radiusRatio = Math.cbrt(volumeRatio);
-        const radius = 0.8 * radiusRatio * 0.45; // Tighter to keep particles well inside the balloon skin
+        const radius = 0.85 * radiusRatio * 0.65; // Larger travel area while staying within balloon
 
         this.particleSystem.sphereParams = {
             radius: radius,
@@ -660,7 +660,7 @@ export class AvogadroScene {
         // Scale bounds with balloon size
         const volumeRatio = this.state.volume / 22.4;
         const radiusRatio = Math.cbrt(volumeRatio);
-        const radius = 0.8 * radiusRatio * 0.45; // Tighter to keep molecules contained
+        const radius = 0.85 * radiusRatio * 0.65; // Larger travel area while staying within balloon
 
         this.particleSystem.setBounds(radius, radius * 1.1, radius);
 
