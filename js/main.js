@@ -206,8 +206,11 @@ function updateUI(law) {
 
     // Update particle count display
     if (currentScene && currentScene.particleSystem) {
+        const particleCount = currentScene.particleSystem.getCount();
+        document.getElementById('particle-slider').value = particleCount;
+        document.getElementById('particle-value').textContent = particleCount;
         document.getElementById('particle-count').textContent =
-            `Particles: ${currentScene.particleSystem.getCount()}`;
+            `Particles: ${particleCount}`;
     }
 }
 
@@ -343,8 +346,11 @@ function setupEventListeners() {
             updateFormulaDisplay('avogadro');
             // Update particle count display
             if (currentScene.particleSystem) {
+                const particleCount = currentScene.particleSystem.getCount();
+                document.getElementById('particle-slider').value = particleCount;
+                document.getElementById('particle-value').textContent = particleCount;
                 document.getElementById('particle-count').textContent =
-                    `Particles: ${currentScene.particleSystem.getCount()}`;
+                    `Particles: ${particleCount}`;
             }
         }
     });
@@ -381,11 +387,13 @@ function setupEventListeners() {
     // Visualization settings
     document.getElementById('particle-slider').addEventListener('input', (e) => {
         const count = parseInt(e.target.value);
-        document.getElementById('particle-value').textContent = count;
+        let appliedCount = count;
         if (currentScene && currentScene.setParticleCount) {
-            currentScene.setParticleCount(count);
-            document.getElementById('particle-count').textContent = `Particles: ${count}`;
+            appliedCount = currentScene.setParticleCount(count);
         }
+        document.getElementById('particle-slider').value = appliedCount;
+        document.getElementById('particle-value').textContent = appliedCount;
+        document.getElementById('particle-count').textContent = `Particles: ${appliedCount}`;
     });
 
     document.getElementById('speed-slider').addEventListener('input', (e) => {
