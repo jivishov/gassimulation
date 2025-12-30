@@ -526,13 +526,13 @@ export class GayLussacScene {
         });
 
         // Cooker center is at y=1.1 (cooker body center)
-        this.particleSystem.setCenterOffset(0, 0.95, 0);
+        this.particleSystem.setCenterOffset(0, 0.85, 0);
 
         // Cylindrical bounds for pressure cooker (radius ~1.1, height from bottom to lid)
         this.cylinderParams = {
             radius: 1.1,
             yMin: 0.1,   // Cooker base on stove surface
-            yMax: this.baseLidY - 0.05   // Just below lid
+            yMax: this.baseLidY - 0.12   // Just below lid with a tighter seal
         };
 
         this.particleSystem.setBounds(1.1, 0.6, 1.1);
