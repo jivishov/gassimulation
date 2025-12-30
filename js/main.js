@@ -398,7 +398,7 @@ function setupEventListeners() {
 
     document.getElementById('speed-slider').addEventListener('input', (e) => {
         const speed = parseFloat(e.target.value);
-        document.getElementById('speed-value').textContent = `${speed.toFixed(1)}x`;
+        document.getElementById('speed-value').textContent = `${speed.toFixed(2)}x`;
         if (currentScene && currentScene.setAnimationSpeed) {
             currentScene.setAnimationSpeed(speed);
         }
@@ -474,7 +474,7 @@ function resetControlValues() {
     document.getElementById('particle-slider').value = 50;
     document.getElementById('particle-value').textContent = '50';
     document.getElementById('speed-slider').value = 0.05;
-    document.getElementById('speed-value').textContent = '0.1x';
+    document.getElementById('speed-value').textContent = '0.05x';
     document.getElementById('show-trails').checked = false;
     document.getElementById('show-collisions').checked = true;
 }

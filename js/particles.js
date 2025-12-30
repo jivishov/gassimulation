@@ -16,7 +16,7 @@ export class ParticleSystem {
             ...options
         };
         this.temperature = 273; // Kelvin
-        this.animationSpeed = 1;
+        this.animationSpeed = 0.05; // Start with slowest speed
         this.bounds = { x: 2, y: 2, z: 2 }; // Half-extents
         this.centerOffset = { x: 0, y: 0, z: 0 }; // Container center position
     }
@@ -198,16 +198,20 @@ export class ParticleSystem {
     }
 
     setParticleCount(count) {
-        const diff = count - this.particles.length;
-        if (diff > 0) {
-            for (let i = 0; i < diff; i++) {
-                this.addParticle();
-            }
-        } else if (diff < 0) {
-            for (let i = 0; i < -diff; i++) {
-                this.removeParticle();
-            }
+        const targetCount = Math.max(1, Math.round(count));
+        this.options.count = targetCount;
+
+        // Add particles if needed
+        while (this.particles.length < targetCount) {
+            this.addParticle();
         }
+
+        // Remove particles if needed
+        while (this.particles.length > targetCount) {
+            this.removeParticle();
+        }
+
+        return this.particles.length;
     }
 
     setParticleSize(size) {
