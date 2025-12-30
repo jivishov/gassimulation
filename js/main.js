@@ -206,8 +206,11 @@ function updateUI(law) {
 
     // Update particle count display
     if (currentScene && currentScene.particleSystem) {
+        const particleCount = currentScene.particleSystem.getCount();
+        document.getElementById('particle-slider').value = particleCount;
+        document.getElementById('particle-value').textContent = particleCount;
         document.getElementById('particle-count').textContent =
-            `Particles: ${currentScene.particleSystem.getCount()}`;
+            `Particles: ${particleCount}`;
     }
 }
 
@@ -334,8 +337,11 @@ function setupEventListeners() {
             updateFormulaDisplay('avogadro');
             // Update particle count display
             if (currentScene.particleSystem) {
+                const particleCount = currentScene.particleSystem.getCount();
+                document.getElementById('particle-slider').value = particleCount;
+                document.getElementById('particle-value').textContent = particleCount;
                 document.getElementById('particle-count').textContent =
-                    `Particles: ${currentScene.particleSystem.getCount()}`;
+                    `Particles: ${particleCount}`;
             }
         }
     });
