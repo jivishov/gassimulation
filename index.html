@@ -24,17 +24,14 @@
             <button class="tab-btn" data-law="ideal">Ideal Gas Law</button>
         </nav>
 
+        <!-- About Law Section (Above Animation) -->
+        <div class="about-law-section" id="law-info">
+            <h4>About Boyle's Law</h4>
+            <p>Discovered by Robert Boyle in 1662. This simulation shows a piston-cylinder system. As you push down the piston (decrease volume), gas molecules have less space and collide more frequently with the walls, increasing pressure. This principle is used in syringes, bicycle pumps, and internal combustion engines.</p>
+        </div>
+
         <!-- Main Content -->
         <main class="main-content">
-            <!-- About Law Section (Above Animation) -->
-            <div class="formula-card" id="formula-display">
-                <h3>Boyle's Law</h3>
-                <div class="formula" id="formula-equation">P₁V₁ = P₂V₂</div>
-                <p class="formula-description" id="formula-description">
-                    At constant temperature, the pressure of a gas is inversely proportional to its volume.
-                </p>
-            </div>
-
             <!-- 3D Simulation Container -->
             <div class="simulation-container">
                 <div id="canvas-container"></div>
@@ -50,6 +47,15 @@
 
             <!-- Control Panel -->
             <aside class="control-panel">
+                <!-- Formula Display -->
+                <div class="formula-card" id="formula-display">
+                    <h3>Boyle's Law</h3>
+                    <div class="formula" id="formula-equation">P₁V₁ = P₂V₂</div>
+                    <p class="formula-description" id="formula-description">
+                        At constant temperature, the pressure of a gas is inversely proportional to its volume.
+                    </p>
+                </div>
+
                 <!-- Simulation Controls -->
                 <div class="controls-card">
                     <h3>Simulation Controls</h3>
@@ -326,13 +332,6 @@
             </aside>
         </main>
 
-        <!-- Educational Info Footer -->
-        <footer class="info-footer">
-            <div class="law-info" id="law-info">
-                <h4>About Boyle's Law</h4>
-                <p>Discovered by Robert Boyle in 1662. This simulation shows a piston-cylinder system. As you push down the piston (decrease volume), gas molecules have less space and collide more frequently with the walls, increasing pressure. This principle is used in syringes, bicycle pumps, and internal combustion engines.</p>
-            </div>
-        </footer>
     </div>
 
     <!-- Three.js (global for OrbitControls compatibility) -->

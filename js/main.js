@@ -189,9 +189,9 @@ function updateUI(law) {
     document.getElementById('formula-equation').textContent = config.formula;
     document.getElementById('formula-description').textContent = config.description;
 
-    // Update footer info
-    document.querySelector('.law-info h4').textContent = `About ${config.name}`;
-    document.querySelector('.law-info p').textContent = config.info;
+    // Update about law info section
+    document.querySelector('#law-info h4').textContent = `About ${config.name}`;
+    document.querySelector('#law-info p').textContent = config.info;
 
     // Update scenario label and hint
     document.getElementById('scenario-label').textContent = config.scenario;

@@ -99,29 +99,41 @@ body {
     box-shadow: var(--shadow);
 }
 
+/* About Law Section (above main content) */
+.about-law-section {
+    background: linear-gradient(135deg, var(--bg-card) 0%, rgba(79, 70, 229, 0.1) 100%);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius);
+    padding: 1rem 1.5rem;
+    margin: 0 1rem;
+}
+
+.about-law-section h4 {
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.about-law-section p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
 /* Main Content Layout */
 .main-content {
     display: grid;
     grid-template-columns: 1fr 360px;
-    grid-template-rows: auto 1fr;
     gap: 1rem;
     padding: 1rem;
     flex: 1;
 }
 
-/* Formula card spans full width above simulation */
-.main-content > .formula-card {
-    grid-column: 1 / -1;
-}
-
 @media (max-width: 1024px) {
     .main-content {
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto 1fr;
-    }
-
-    .main-content > .formula-card {
-        grid-column: 1;
     }
 }
 
@@ -578,26 +590,6 @@ body {
 .reset-btn:hover {
     background: var(--danger-color);
     border-color: var(--danger-color);
-}
-
-/* Info Footer */
-.info-footer {
-    padding: 1rem;
-    background: var(--bg-card);
-    border-top: 1px solid var(--border-color);
-}
-
-.law-info h4 {
-    color: var(--primary-color);
-    font-size: 0.9rem;
-    margin-bottom: 0.4rem;
-}
-
-.law-info p {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    line-height: 1.6;
-    max-width: 1000px;
 }
 
 /* Animations */
