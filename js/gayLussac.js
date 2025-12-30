@@ -361,9 +361,9 @@ export class GayLussacScene {
 
     createPressureGauge() {
         const gaugeGroup = new THREE.Group();
-        // Mount gauge on top of the flat lid - prominently visible
-        gaugeGroup.position.set(1.05, 0.2, 0.0);
-        gaugeGroup.rotation.set(-0.05, -Math.PI / 2.4, 0); // Angled toward camera on rim
+        // Mount gauge clearly above the flat lid - prominently visible
+        gaugeGroup.position.set(0.9, 0.45, 0.0);
+        gaugeGroup.rotation.set(0, -Math.PI / 2.2, 0); // Facing toward camera
         this.lidGroup.add(gaugeGroup); // Attach to lid so it moves with it
 
         // Gauge housing (chrome finish)
@@ -468,21 +468,28 @@ export class GayLussacScene {
         glass.position.z = 0.07;
         gaugeGroup.add(glass);
 
-        // Mounting stem connecting gauge to lid surface
-        // Mounting stem connecting gauge to lid surface
+        // Mounting stem connecting gauge down to the lid surface
         const stemCurve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(0, -0.05, -0.04),
-            new THREE.Vector3(-0.05, -0.22, -0.12),
-            new THREE.Vector3(-0.12, -0.35, -0.18)
+            new THREE.Vector3(0, -0.06, 0),
+            new THREE.Vector3(-0.08, -0.18, 0.02),
+            new THREE.Vector3(-0.15, -0.32, 0.04)
         ]);
-        const stemGeometry = new THREE.TubeGeometry(stemCurve, 16, 0.035, 10, false);
+        const stemGeometry = new THREE.TubeGeometry(stemCurve, 16, 0.04, 10, false);
         const stemMaterial = new THREE.MeshStandardMaterial({
-            color: 0x777777,
+            color: 0x666666,
             metalness: 0.85,
             roughness: 0.2
         });
         const stem = new THREE.Mesh(stemGeometry, stemMaterial);
         gaugeGroup.add(stem);
+
+        // Base mount on lid
+        const mountBase = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.08, 0.1, 0.08, 12),
+            stemMaterial
+        );
+        mountBase.position.set(-0.15, -0.36, 0.04);
+        gaugeGroup.add(mountBase);
 
         this.pressureGauge = gaugeGroup;
         this.updatePressureGauge();
